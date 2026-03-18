@@ -1,0 +1,11 @@
+# Root dir
+sparsedr_ext_paper.*
+!sparsedr_ext_paper.tex
+
+template.*
+!template.tex
+
+Instructions for Authors_AI_MDPI.html
+
+# Definitions dir
+*-converted-to.pdf
