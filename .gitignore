@@ -8,4 +8,8 @@ template.*
 Instructions for Authors_AI_MDPI.html
 
 # Definitions dir
-*-converted-to.pdf
+Definitions/*-converted-to.pdf
+
+# Other
+
+Papers/*
