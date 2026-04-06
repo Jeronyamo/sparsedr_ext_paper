@@ -65,7 +65,7 @@
 
 %=================================================================
 % Full title of the paper (Capitalized)
-\Title{Title}
+\Title{Differentiable rendering of sparse signed distance functions}
 
 % Author Orchid ID: enter ID or remove command
 \newcommand{\orcidauthorA}{0000-0000-0000-000X} % Add \orcidA{} behind the author's name
@@ -103,7 +103,7 @@ $^{2}$ \quad Affiliation 2; e-mail@e-mail.com}
 \abstract{A single paragraph of about 200 words maximum. For research articles, abstracts should give a pertinent overview of the work. We strongly encourage authors to use the following style of structured abstracts, but without headings: (1) Background: place the question addressed in a broad context and highlight the purpose of the study; (2) Methods: describe briefly the main methods or treatments applied; (3) Results: summarize the article's main findings; (4) Conclusions: indicate the main conclusions or interpretations. The abstract should be an objective representation of the article, it must not contain results which are not presented and substantiated in the main text and should not exaggerate the main conclusions.}
 
 % Keywords
-\keyword{keyword 1; keyword 2; keyword 3 (List three to ten pertinent keywords specific to the article; yet reasonably common within the subject discipline.)} 
+\keyword{computer vision; 3D reconstruction; differentiable rendering; signed distance function} 
 
 % The fields PACS, MSC, and JEL may be left empty or commented out if not applicable
 %\PACS{J0101}
@@ -153,24 +153,35 @@ $^{2}$ \quad Affiliation 2; e-mail@e-mail.com}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \begin{document}
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\setcounter{section}{-1} %% Remove this when starting to work on the template.
-\section{How to Use this Template}
-
-The template details the sections that can be used in a manuscript. Note that the order and names of article sections may differ from the requirements of the journal (e.g., the positioning of the Materials and Methods section). Please check the instructions on the authors' page of the journal to verify the correct order and names. For any questions, please contact the editorial office of the journal or support@mdpi.com. For LaTeX-related questions please contact latex@mdpi.com.%\endnote{This is an endnote.} % To use endnotes, please un-comment \printendnotes below (before References). Only journal Laws uses \footnote.
-
-% The order of the section titles is different for some journals. Please refer to the "Instructions for Authors” on the journal homepage.
-
 \section{Introduction}
+
+\subsection{Differentiable rendering: 3D reconstruction vs. novel view synthesis}
+
+\subsection{Differentiable rendering: boundary integral theory and background}
+
+\subsection{SDF, SDF in DR, its problems}
+
+\subsection{Contributions}
 
 The introduction should briefly place the study in a broad context and highlight why it is important. It should define the purpose of the work and its significance. The current state of the research field should be reviewed carefully and key publications cited. Please highlight controversial and diverging hypotheses when necessary. Finally, briefly mention the main aim of the work and highlight the principal conclusions. As far as possible, please keep the introduction comprehensible to scientists outside your particular field of research. Citing a journal paper \citep{ref-journal}.  Now citing a book reference \citep{ref-book1,ref-book2} or other reference types \citep{ref-unpublish,ref-url}. Please use the command \citep{ref-proceeding,ref-thesis} for the following MDPI journals, which use author--date citation: Administrative Sciences, Arts, Behavioral Sciences, Businesses, Econometrics, Economies, Education Sciences, European Journal of Investigation in Health, Psychology and Education, Games, Genealogy, Histories, Humanities, Humans, IJFS, Journal of Intelligence, Journalism and Media, JRFM, Languages, Laws, Literature, Psychology International, Publications, Religions, Risks, Social Sciences, Tourism and Hospitality, Youth. 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Materials and Methods}
 
+\subsection{Overview}
+
+About the algorithm (add pseudocode), what is completely new, what is modified, what is left unchanged.
+
+\subsection{Gradient evaluation}
+
+\subsection{Upsampling (and sparsification)}
+
+\subsection{Redistancing}
+
+
 Materials and Methods should be described with sufficient details to allow others to replicate and build on published results. Please note that publication of your manuscript implicates that you must make all materials, data, computer code, and protocols associated with the publication available to readers. Please disclose at the submission stage any restrictions on the availability of materials or information. New methods and protocols should be described in detail while well-established methods can be briefly described and appropriately cited.
 
-Research manuscripts reporting large datasets that are deposited in a publicly avail-able database should specify where the data have been deposited and provide the relevant accession numbers. If the accession numbers have not yet been obtained at the time of submission, please state that they will be provided during review. They must be provided prior to publication.
+Research manuscripts reporting large datasets that are deposited in a publicly available database should specify where the data have been deposited and provide the relevant accession numbers. If the accession numbers have not yet been obtained at the time of submission, please state that they will be provided during review. They must be provided prior to publication.
 
 Interventionary studies involving animals or humans, and other studies require ethical approval must list the authority that provided approval and the corresponding ethical approval code.
 
@@ -183,25 +194,54 @@ This is an example of a quote.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Results}
 
-This section may be divided by subheadings. It should provide a concise and precise description of the experimental results, their interpretation as well as the experimental conclusions that can be drawn.
-\subsection{Subsection}
-\subsubsection{Subsubsection}
+% This section состоит из двух частей: первая часть показывает сравнения с базовым методом по времени реконструкции, качеству и размеру полученных моделей; вторая часть посвящена дополнительным исследованиям (ablation study) работы метода. Для всех экспериментов использовались AMD Ryzen 97950X CPU and NVidia GeForce RTX 4090 GPU.
 
-Bulleted lists look like this:
-\begin{itemize}
-\item	First bullet;
-\item	Second bullet;
-\item	Third bullet.
-\end{itemize}
+\subsection{Comparison to baseline}
 
-Numbered lists can be added as follows:
-\begin{enumerate}
-\item	First item; 
-\item	Second item;
-\item	Third item.
-\end{enumerate}
+% Сравнения представляют собой реконструкцию моделей в максимально равных условиях с последующим сопоставлением времени и точности реконструкции, а также размеров полученных представлений для каждой эпохи. Реализация метода relaxed boundary взята из официального репозитория \cite{}.
 
-The text continues here.
+% ! Попробовать реконструкцию в базовом методе для поздних эпох в разрешении 512*512, мб не упадёт
+
+% Реконструкция велась на 15 ракурсах, равномерно распределённых на сфере с использованием кода из \cite{}, разрешение изображений 1024*1024. В сцене два направленных источника света: (1,1,1) и (-1,-1,-1), а также ambient light. Первые 3 эпохи занимают по 200 итераций, оставшиеся 4 по 100 итераций. Размер батча 5. Hyperparameters, such as learning rate, Adam optimizer parameters, relaxed boundary width (epsilon), взяты из конфигурационного файла в репозитории \cite{}. Восстанавливались модели ... !
+
+% Базовый метод в нашей hardware конфигурации способен выполнить только 5 эпох (после чего Dr.JIT возвращает OOM error), в то время как наш метод выполняет 7 эпох за то же время. Это повлияло на презентацию результатов следующим образом: график времени содержит пропуски для базового метода на 6 и 7 эпохах; результаты качества представлены для базового метода (5 эпох), нашего метода (5 эпох), а также нашего метода, работавшего то же время, что и базовый (7 эпох). Размеры моделей в базовом методе (3D grids of floating point values) получены как число узлов сетки, умноженное на 4 байта, поэтому в этом сравнении результаты представлены полностью.
+
+
+% ! График времени: барплот, среднее по всем моделям время выполнения каждой эпохи. Для базового метода 5, для нашего 7 (Для базового метода отсутствуют результаты для эпох 6 и 7).
+
+% На ... представлено среднее по всем моделям время выполнения одной итерации для каждой эпохи с разбиением на этапы. Из него следует, что, в связи с использованием BVH, появляется зависимость времени рендера от размера SBS. Тем не менее, наш метод заметно быстрее базового на первых пяти эпохах. Отдельно следует отметить редистансинг: локальный редистансинг на CPU оказался быстрее, чем полноценный редистансинг на GPU.
+
+
+% ! График качества: три столбика - базовый, наш (та же эпоха), наш (то же время)
+
+% Figure~\ref{} показывает среднее по ракурсам значение PSNR для рендеров референса и реконструкции. Представлено три результата: работа базового метода (5 эпох), работа нашего метода для того же числа эпох, а также результат работы нашего метода за то же время, которое работал базовый метод (7 эпох). Сравнение первого со вторым приводится для валидации, его цель -- показать сопоставимость результатов работы двух методов. Сравнение первого с третьим демонстрирует преимущество нашего метода в качестве реконструкции.
+% % ! СПОРНО, АККУРАТНЕЕ С ЭТИМ АБЗАЦЕМ
+% Отрисовка референсов и результирующих рендеров в эталонной реализации проводилась с 2048 лучами на пиксель для минимизации влияния шума. Результаты сравнения PSNR служат подтверждением того, что отсутствие вторичных лучей в нашей реализации не повлияло на качество оптимизации.
+
+
+% ! Таблица размеров: как в SparseDR статье, но для каждой эпохи и каждой модели.
+
+% В таблице Table~\ref{} приведены размеры моделей, полученных для каждой модели на каждой эпохе. The sizes of SDF grids are the same for all models on each epoch. В результате апсемплинга размер сетки увеличивается в 8 раз. Благодаря использованию разреженной структуры данных, размер моделей, полученных нашим методом, меньше размера грида начиная с третьей эпохи. Кроме того, размер модели после апсемплинга примерно в 4 раза больше исходной, что ожидаемо, так как модель хранит только дистанции у поверхности. Таким образом, рост размера моделей в нашем методе на порядок меньше, чем в базовом.
+
+
+! For the baseline: Try to achieve correct reconstruction with the black background.
+
+
+\subsection{Ablation study}
+
+% В данном подразделе исследуется влияние отдельных элементов алгоритма на скорость и качество реконструкции, а также приводятся более подробные результаты экспериментов из прошлого подраздела, выходящие за рамки сравнения с базовым методом.
+
+
+% 1. Реконструкция с sphere tracing vs. Newton/Analytic -- второй быстрее
+% 2. Реконструкция с обеими версиями редистансинга -- ещё быстрее, и качество не проседает
+
+% Поэтапно сравним скорость и качество работы метода, начав с идентичной базовому методу конфигурации sphere tracing + редистансинг, сначала сменив метод поиска пересечения на Newton/Analytical, а затем перейдя на локальный редистансинг.
+
+
+% 3. Демонстрация качества (бар плот) для каждой эпохи -- PSNR растёт линейно
+
+% ?. Эксперименты с релакс-эпсилон, регуляризацией
+
 
 \subsection{Figures, Tables and Schemes}
 
@@ -351,15 +391,18 @@ The text continues here.
 
 Authors should discuss the results and how they can be interpreted from the perspective of previous studies and of the working hypotheses. The findings and their implications should be discussed in the broadest context possible. Future research directions may also be highlighted.
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\section{Conclusions}
-
-This section is not mandatory, but can be added to the manuscript if the discussion is unusually long or complex.
+\subsection{Limitations}
+Write about quality issues with PSNR metric, idea about trying SSIM.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\section{Patents}
+% \section{Conclusions}
 
-This section is not mandatory, but may be added if there are patents resulting from the work reported in this manuscript.
+% This section is not mandatory, but can be added to the manuscript if the discussion is unusually long or complex.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% \section{Patents}
+
+% This section is not mandatory, but may be added if there are patents resulting from the work reported in this manuscript.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \vspace{6pt} 
@@ -396,11 +439,7 @@ This section is not mandatory, but may be added if there are patents resulting f
 
 \funding{Please add: ``This research received no external funding'' or ``This research was funded by NAME OF FUNDER grant number XXX.'' and  and ``The APC was funded by XXX''. Check carefully that the details given are accurate and use the standard spelling of funding agency names at \url{https://search.crossref.org/funding}, any errors may affect your future funding.}
 
-\institutionalreview{In this section, you should add the Institutional Review Board Statement and approval number, if relevant to your study. You might choose to exclude this statement if the study did not require ethical approval. Please note that the Editorial Office might ask you for further information. Please add “The study was conducted in accordance with the Declaration of Helsinki, and approved by the Institutional Review Board (or Ethics Committee) of NAME OF INSTITUTE (protocol code XXX and date of approval).” for studies involving humans. OR “The animal study protocol was approved by the Institutional Review Board (or Ethics Committee) of NAME OF INSTITUTE (protocol code XXX and date of approval).” for studies involving animals. OR “Ethical review and approval were waived for this study due to REASON (please provide a detailed justification).” OR “Not applicable” for studies not involving humans or animals.}
-
-\informedconsent{Any research article describing a study involving humans should contain this statement. Please add ``Informed consent was obtained from all subjects involved in the study.'' OR ``Patient consent was waived due to REASON (please provide a detailed justification).'' OR ``Not applicable'' for studies not involving humans. You might also choose to exclude this statement if the study did not involve humans.
-
-Written informed consent for publication must be obtained from participating patients who can be identified (including by the patients themselves). Please state ``Written informed consent has been obtained from the patient(s) to publish this paper'' if applicable.}
+\institutionalreview{Not applicable}
 
 \dataavailability{We encourage all authors of articles published in MDPI journals to share their research data. In this section, please provide details regarding where data supporting reported results can be found, including links to publicly archived datasets analyzed or generated during the study. Where no new data were created, or where data is unavailable due to privacy or ethical restrictions, a statement is still required. Suggested Data Availability Statements are available in section ``MDPI Research Data Policies'' at \url{https://www.mdpi.com/ethics}.} 
 
@@ -417,7 +456,7 @@ Written informed consent for publication must be obtained from participating pat
 
 \acknowledgments{In this section you can acknowledge any support given which is not covered by the author contribution or funding sections. This may include administrative and technical support, or donations in kind (e.g., materials used for experiments). Where GenAI has been used for purposes such as generating text, data, or graphics, or for study design, data collection, analysis, or interpretation of data, please add “During the preparation of this manuscript/study, the author(s) used [tool name, version information] for the purposes of [description of use]. The authors have reviewed and edited the output and take full responsibility for the content of this publication.”}
 
-\conflictsofinterest{Declare conflicts of interest or state ``The authors declare no conflicts of interest.'' Authors must identify and declare any personal circumstances or interest that may be perceived as inappropriately influencing the representation or interpretation of reported research results. Any role of the funders in the design of the study; in the collection, analyses or interpretation of data; in the writing of the manuscript; or in the decision to publish the results must be declared in this section. If there is no role, please state ``The funders had no role in the design of the study; in the collection, analyses, or interpretation of data; in the writing of the manuscript; or in the decision to publish the results''.} 
+\conflictsofinterest{The authors declare no conflicts of interest. The funders had no role in the design of the study; in the collection, analyses, or interpretation of data; in the writing of the manuscript; or in the decision to publish the results.} 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Optional
