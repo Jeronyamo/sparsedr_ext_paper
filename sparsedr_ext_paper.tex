@@ -68,12 +68,12 @@
 \Title{Differentiable rendering of sparse signed distance functions}
 
 % Author Orchid ID: enter ID or remove command
-\newcommand{\orcidauthorA}{0000-0000-0000-000X} % Add \orcidA{} behind the author's name
-\newcommand{\orcidauthorB}{0000-0000-0000-000X} % Add \orcidB{} behind the author's name
-\newcommand{\orcidauthorC}{0000-0000-0000-000X} % Add \orcidC{} behind the author's name
+\newcommand{\orcidauthorA}{0009-0005-6819-4184} % Add \orcidA{} behind the author's name
+\newcommand{\orcidauthorB}{0000-0003-3802-1774} % Add \orcidB{} behind the author's name
+\newcommand{\orcidauthorC}{0000-0001-8829-9884} % Add \orcidC{} behind the author's name
 
 % Authors, for the paper (add full first names)
-\Author{Alexey Budak $^{1}$\orcidA{}, Albert Garifullin $^{2}$ and Vladimir Frolov $^{2,}$*}
+\Author{Alexey Budak $^{1,}$*\orcidA{}, Albert Garifullin $^{1}$ and Vladimir Frolov $^{2}$}
 
 %\longauthorlist{yes}
 
@@ -82,11 +82,11 @@
 
 % Affiliations / Addresses (Add [1] after \address if there is only one affiliation.)
 \address{%
-$^{1}$ \quad Affiliation 1; e-mail@e-mail.com\\
-$^{2}$ \quad Affiliation 2; e-mail@e-mail.com}
+$^{1}$ \quad Lomonosov Moscow State University\\
+$^{2}$ \quad Institute for Artificial Intelligence, Lomonosov Moscow State University}
 
 % Contact information of the corresponding author
-\corres{Correspondence: e-mail@e-mail.com; Tel.: (optional; include country code; if there are multiple corresponding authors, add author initials) +xx-xxxx-xxx-xxxx (F.L.)}
+\corres{Correspondence: alexey.budak@graphics.cs.msu.ru}
 
 % Current address and/or shared authorship
 %\firstnote{Current address: Affiliation.}  
@@ -100,7 +100,10 @@ $^{2}$ \quad Affiliation 2; e-mail@e-mail.com}
 %\conference{} % An extended version of a conference paper
 
 % Abstract (Do not insert blank lines, i.e. \\) 
-\abstract{A single paragraph of about 200 words maximum. For research articles, abstracts should give a pertinent overview of the work. We strongly encourage authors to use the following style of structured abstracts, but without headings: (1) Background: place the question addressed in a broad context and highlight the purpose of the study; (2) Methods: describe briefly the main methods or treatments applied; (3) Results: summarize the article's main findings; (4) Conclusions: indicate the main conclusions or interpretations. The abstract should be an objective representation of the article, it must not contain results which are not presented and substantiated in the main text and should not exaggerate the main conclusions.}
+\abstract{
+% 3D реконструкция является одной из фундаментальных проблем в компьютерном зрении. Одним из эффективных подходов к решению этой задачи является дифференцируемый рендеринг -- идея заключается в making этапов рендеринга дифференцируемыми, благодаря чему его можно использовать для реконструкции с использованием градиентной оптимизации. Отдельная группа методов развивает дифференцируемый физически-обоснованный рендеринг, позволяя одновременно восстанавливать геометрию и материалы объектов сцены. Эти методы используют два типа представления поверхности: меши, имеющие фундаментальные проблемы в контексте 3D реконструкции, и signed distance functions (SDF) -- более гибкое представление, more fitting для реконструкции геометрии. Тем не менее, существующие SDF методы используют dense SDF grids, что приводит к значительным затратам памяти, а также медленную, основанную на sphere tracing трассировку и вычислительно затратный redistancing step, который распространяет обновлённые значения SDF по всей сетке. Данный метод предлагает решение этих проблем, leveraging sparse brick set (SBS) representation, метод Ньютона for ray-surface intersection и две новые версии алгоритма редистансинга, адаптированные под разреженное SDF представление и непосредственно задачу дифференцируемого рендеринга. Это позволило преодолеть имеющиеся ограничения и повысить скорость и качество реконструкции, на порядок уменьшив рост размера модели during optimization.
+3D reconstruction is one of the fundamental problems in computer vision and graphics. One effective approach to this task is differentiable rendering, which aims to make the stages of the rendering pipeline differentiable, enabling reconstruction via gradient-based optimization. A separate line of work focuses on differentiable physically based rendering, allowing the simultaneous recovery of both geometry and material properties of scene objects. These methods rely on two types of surface representations: meshes, which exhibit fundamental limitations in the context of 3D reconstruction, and signed distance functions (SDFs), a more flexible representation better suited for geometry reconstruction. However, existing SDF-based methods typically employ dense SDF grids, resulting in high memory consumption, slow sphere-tracing-based ray traversal, and a computationally expensive redistancing step that propagates updated SDF values across the entire grid. The proposed method addresses these challenges by leveraging a sparse brick set (SBS) representation, a Newton-based method for ray-surface intersection, and two novel variants of the redistancing algorithm adapted to sparse SDF representations and the specific requirements of differentiable rendering. This approach overcomes the aforementioned limitations, improves both reconstruction speed and quality, and reduces model size growth during optimization by an order of magnitude.
+}
 
 % Keywords
 \keyword{computer vision; 3D reconstruction; differentiable rendering; signed distance function} 
@@ -155,46 +158,100 @@ $^{2}$ \quad Affiliation 2; e-mail@e-mail.com}
 
 \section{Introduction}
 
-\subsection{Differentiable rendering: 3D reconstruction vs. novel view synthesis}
+\subsection{Differentiable rendering}
 
-\subsection{Differentiable rendering: boundary integral theory and background}
+% 3D реконструкция является одной из фундаментальных проблем в компьютерном зрении. С ней тесно переплетён обратный рендеринг. Если (прямой) рендеринг заключается в получении 2D изображений 3D сцены, то задача обратного рендеринга -- получение из набора изображений, которые считаются отрендеренными определённым образом, объектов представленной на них сцены. В последние 10 лет успехов в решении этой задачи добивается активно развивающийся дифференцируемый рендеринг. Дифференцируемый рендеринг подразумевает дифференцируемость всех этапов алгоритма рендеринга; это даёт возможность использовать градиентную оптимизацию для реконструкции сцены. В результате можно распространить градиенты от функции потерь между изображением реконструируемой сцены и соответствующим референсным изображением до оптимизируемых параметров -- материалов, геометрии -- которые должны сойтись к референсной сцене.
+3D reconstruction is one of the fundamental problems in computer vision. It is closely related to inverse rendering. While (forward) rendering consists of generating 2D images from a 3D scene, inverse rendering aims to recover the objects of a scene from a set of images assumed to be rendered under a specific process. Over the past decade, significant progress in solving this problem has been driven by the rapidly developing field of differentiable rendering. Differentiable rendering assumes that all stages of the rendering pipeline are differentiable, enabling the use of gradient-based optimization for scene reconstruction. As a result, gradients from a loss function defined between a reconstructed image and a corresponding reference image can be propagated to the optimized parameters -- such as materials and geometry -- which are expected to converge to those of the reference scene.
 
-\subsection{SDF, SDF in DR, its problems}
+% Существует большое число методов, предлагающих дифференцируемые алгоритмы рендеринга для различных типов представлений объектов. Их можно объединить в две большие группы, нейронные и не-нейронные. К первым относится NeRF \cite{NeRF}, а также другие методы нейронного рендеринга, реконструирующие, например, облака точек \cite{NeuPC} или SDF \cite{NeUS2, NeuAngelo}. Ко второй группе относится gaussian splatting \cite{3DGS, 2DGS}, mesh splatting \cite{MeshS}. Однако, если нам требуется получить и геометрию, и материалы объекта, например для физически-обоснованного рендеринга, то для большинства методов потребуется дальнейшая обработка результатов их работы. Сперва требуется конвертация в представления, применимые в пайплайне трассировки путей, например в SDF или меши. Такие работы существуют, как например \cite{BakedSDF} for NeRF or \cite{SuGaR} for 3DGS, однако потеря качества при конвертации неизбежна. Также есть метод mesh splatting, реконструирующий меши напрямую. Однако следом возникает другая проблема -- эти методы позволяют получить текстуры, но не материалы. В то же время, существует группа методов, направленных на получение корректных градиентов для трассировки лучей в физически-обоснованном рендеринге.
+A large number of methods have been proposed that provide differentiable rendering algorithms for various types of scene representations. These methods can be broadly divided into two categories: neural and non-neural approaches. The former includes NeRF \cite{NeRF} and other neural rendering techniques that reconstruct, for example, point clouds or signed distance functions (SDFs) \cite{NeUS2, NeuAngelo}. The latter category includes methods such as Gaussian splatting \cite{3DGS, 2DGS} and mesh splatting \cite{MeshS}.
 
-\subsection{Contributions}
+However, when both geometry and material properties are required -- for instance, in physically based rendering -- most of these methods necessitate additional post-processing. First, their outputs must be converted into representations compatible with path tracing pipelines, such as SDFs or meshes. Although such conversion approaches exist (e.g., \cite{BakedSDF, NeRFMeshing} for NeRF and \cite{SuGaR} for 3DGS), quality degradation during conversion is unavoidable. Mesh splatting methods address this issue by reconstructing meshes directly; however, they introduce another limitation: while they enable texture reconstruction, they do not recover material properties. At the same time, there exists a class of methods specifically designed to obtain accurate gradients for ray tracing in physically based rendering.
 
-The introduction should briefly place the study in a broad context and highlight why it is important. It should define the purpose of the work and its significance. The current state of the research field should be reviewed carefully and key publications cited. Please highlight controversial and diverging hypotheses when necessary. Finally, briefly mention the main aim of the work and highlight the principal conclusions. As far as possible, please keep the introduction comprehensible to scientists outside your particular field of research. Citing a journal paper \citep{ref-journal}.  Now citing a book reference \citep{ref-book1,ref-book2} or other reference types \citep{ref-unpublish,ref-url}. Please use the command \citep{ref-proceeding,ref-thesis} for the following MDPI journals, which use author--date citation: Administrative Sciences, Arts, Behavioral Sciences, Businesses, Econometrics, Economies, Education Sciences, European Journal of Investigation in Health, Psychology and Education, Games, Genealogy, Histories, Humanities, Humans, IJFS, Journal of Intelligence, Journalism and Media, JRFM, Languages, Laws, Literature, Psychology International, Publications, Religions, Risks, Social Sciences, Tourism and Hospitality, Youth. 
+\subsection{Differentiable physically-based rendering}
+
+% В 2018 был представлен edge sampling, метод дифференцируемого рендеринга, применимый для трассировки путей \cite{EdgeSampling}. Их подход учитывал первичную и вторичную видимость и впервые дал возможность корректно дифференцировать по произвольным параметрам сцены. В работе было показано, что при дифференцировании по параметрам, задающим форму объекта, подынтегральное выражение терпит разрывы, и положение этих разрывов зависит от вышеупомянутых параметров. В этом случае производная интеграла получается из транспортной теоремы Рейнольдса:
+In 2018, edge sampling, a differentiable rendering method applicable to path tracing, was introduced \cite{EdgeSampling}. The proposed approach accounts for both primary and secondary visibility and, for the first time, enables correct differentiation with respect to arbitrary scene parameters. The study demonstrated that when differentiating with respect to parameters defining object shape, the integrand becomes discontinuous, and the locations of these discontinuities depend on the aforementioned parameters. In such cases, the derivative of the integral is obtained using the Reynolds transport theorem:
+
+% формула
+
+% где <TODO: >. Первое слагаемое называется \textit{внутренним интегралом}, второе \textit{граничным интегралом}. Проблема оценки граничного интеграла заключается в том, что, для любого ракурса, площадь области его определения равна 0, из-за чего его нельзя просемплировать методом Монте-Карло. В \cite{EdgeSampling} он семплируется явно: предварительно отбираются грани меша, которые образуют силуэт, после чего они равномерно семплируются. Для полигонального меша это дорогостоящая операция, потому в дальнейшием несколько работ предложило оценку граничного интеграла без явного семплирования границ. Метод репараметризации \cite{Reparam} локально учитывает разрывы, а warped-area sampling method \cite{WAS} делает переход от интеграла по границе к объёмному интегралу, что позволяет переиспользовать семплы внутреннего интеграла.
+The first term is referred to as the \textit{interior integral}, and the second as the \textit{boundary integral}. The difficulty in estimating the boundary integral lies in the fact that, for any viewpoint, the measure of its domain is zero, which makes it impossible to sample using Monte Carlo methods. In \cite{EdgeSampling}, it is sampled explicitly: silhouette edges of the mesh are first identified, after which they are sampled uniformly. For polygonal meshes, this is a computationally expensive operation; therefore, several subsequent works have proposed methods for estimating the boundary integral without explicit boundary sampling. The reparameterization method \cite{Reparam} locally accounts for discontinuities, while the warped-area sampling method \cite{WAS} transforms the boundary integral into a volumetric integral, enabling reuse of samples from the interior integral.
+
+% Рассмотренные выше методы теоретически не зависят от способа представления объекта, однако в работах они применяются для реконструкции полигональных мешей. На практике оптимизация с использованием этого представления обладает рядом фундаментальных ограничений, серьёзно осложняющих задачу восстановления. Эти ограничения исследуются в работе 2021 года \cite{Nicolet}. Главная проблема мешей -- невозможность изменения топологии (рода поверхности) начального приближения. Кроме того, в процессе оптимизации возможны необратимые самопересечения и неравномерное распределение примитивов: в областях с высокой детализацией может не хватать элементов для точного описания формы. Предложенные в работе модификации частично устраняют две последние проблемы, но самопересечения сохраняются, а топологическое ограничение остаётся существенным препятствием для оптимизации.
+The methods discussed above are theoretically independent of the chosen object representation; however, in practice they are applied to the reconstruction of polygonal meshes. In this setting, optimization based on such a representation exhibits several fundamental limitations that significantly complicate the reconstruction task. These limitations are analyzed in the 2021 study \cite{Nicolet}. The primary issue with mesh-based representations is the inability to modify the topology (i.e., the genus of the surface) of the initial approximation. In addition, the optimization process may lead to irreversible self-intersections and an uneven distribution of primitives: regions with high geometric detail may lack sufficient elements to accurately capture the shape. The modifications proposed in \cite{Nicolet} partially mitigate the latter two issues; however, self-intersections persist, and the topological constraint remains a significant obstacle to effective optimization.
+
+\subsection{Differentiable rendering of SDFs}
+
+% После 2021 года последовало несколько работ, посвященных дифференцируемому рендерингу с использованием \textit{функций расстояния со знаком}. В простейшем случае это представление имеет вид регулярной сетки, в узлах которой хранятся дистанции со знаком. Для каждой точки пространства функция возвращает расстояние от этой точки до поверхности. Отрицательное значение дистанции означает, что точка находится внутри представленного объекта.
+% В работе \cite{HanssonSoderlund} рассмотрены существующие и предложены новые варианты SDF представлений, а также способы поиска пересечения. Помимо использования стандартного алгоритма sphere tracing, были предложены два новых метода, предназначенных для пересечения луча и вокселя. Насколько нам известно, эти представления ранее не использовались в дифференцируемом рендеринге.
+After 2021, several studies have been devoted to differentiable rendering using \textit{signed distance functions} in the form of a regular grid, where signed distance values are stored at the grid nodes. For any point in space, the function returns the distance from that point to the surface by interpolating the grid values. A negative distance value indicates that the point lies inside the represented object.
+
+In \cite{HanssonSoderlund}, existing SDF representations are analyzed and new variants are proposed, along with methods for intersection search. In addition to the standard sphere tracing algorithm, two new methods for ray-voxel intersection are introduced. To the best of our knowledge, these representations have not previously been used in differentiable rendering.
+
+% В 2022 году репараметризацию впервые применили к функциям расстояния со знаком \cite{DRSDF}. В работе сравнивались два подхода: прямое использование метода 2020 года и модифицированный вариант, адаптированный под SDF. Параллельно в \cite{NeuDRSDF} разработали репараметризацию для нейронных SDF, устраняющую необходимость применения масок при оптимизации.
+% Наконец, в методе релаксированной границы \cite{RelaxBoundary} (2024) авторы развивают идею репараметризации как перехода от поверхностного интеграла к интегралу по объёму. Предложенный метод дифференцируемого рендеринга использует свойства функций расстояния и выполняет переход от граничного интеграла к интегралу по «релаксированной границе» -- тонкой области вокруг силуэта объекта. Применение SDF позволяет определять точки этой области во время трассировки лучей: значение функции расстояния в них меньше заданного порогового значения, определяемого гиперпараметром.
+In 2022, reparameterization was first applied to signed distance functions \cite{DRSDF}. The study compared two approaches: the direct use of the 2020 method and a modified variant adapted specifically for SDFs. In parallel, \cite{NeuDRSDF} introduced a reparameterization technique for neural SDFs that eliminates the need for masking during optimization.
+
+Finally, in the relaxed boundary method \cite{RelaxBoundary} (2024), the authors further develop the idea of reparameterization as a transformation from a surface integral to a volume integral. The proposed differentiable rendering approach leverages the properties of distance functions and replaces the boundary integral with an integral over a “relaxed boundary,” defined as a thin region surrounding the object silhouette. The use of SDFs enables the identification of points within this region during ray tracing: the value of the distance function at such points is below a predefined threshold determined by a hyperparameter.
+
+\subsection{Problems and contributions}
+
+% Описанные выше методы развивают дифференцируемый физически-обоснованный рендеринг, придя к простому методу оценки граничного интеграла для функций расстояния со знаком -- более гибкого представления с точки зрения реконструкции поверхности, чем меш. Тем не менее, у него имеется ряд недостатков: во-первых, быстрый рост размера модели: в процессе оптимизации разрешение сетки увеличивается постепенно, и на каждом upsampling step её размер увеличивается в 8 раз, что сильно ограничивает возможности метода. Во-вторых, медленная отрисовка, основанная на sphere tracing. В-третьих, даже при локальных изменениях дистанций около поверхности, существующие методы применяют затратный алгоритм редистансинга. Он применяется на каждом шаге оптимизации для пересчёта значений после обновления дистанций, так как сетка перестаёт задавать функцию расстояния, причём пересчёту подвержены все дистанции of the grid.
+Described methods advance differentiable physics-based rendering by introducing a simple approach for estimating boundary integrals for signed distance functions -- a representation that is more flexible for surface reconstruction than meshes. However, this approach has several drawbacks. First, the model size grows rapidly: during optimization, the grid resolution is progressively increased, and at each upsampling step its size expands eightfold, which significantly limits the method's scalability. Second, rendering remains slow due to its reliance on sphere tracing. Third, even for local modifications of distances near the surface, existing methods employ a computationally expensive redistancing algorithm. This procedure is applied at every optimization step to recompute values after distance updates, since the grid no longer represents a valid distance function; consequently, all grid distances must be recalculated.
+
+% В этой работе предлагается метод дифференцируемого рендеринга разреженных SDF представлений. Взяв метод релаксированной границы в качестве базового, были переработаны все этапы алгоритма оптимизации. The key contributions of this work are:
+% 1) адаптация дифференцируемого рендеринга SDF под разреженные представления, превосходящая базовый метод по скорости и уменьшающая на порядок рост размера оптимизируемой модели.
+% 2) две версии алгоритма редистансинга разреженных представлений, одна из которых адаптирована специально под нужды дифференцируемого рендеринга.
+This work proposes a method for differentiable rendering of sparse SDF representations. Building on the relaxed boundary approach as a baseline, all stages of the optimization algorithm have been redesigned. The key contributions of this work are as follows:
+
+\begin{itemize}
+    \item An adaptation of differentiable SDF rendering for sparse representations, which outperforms the baseline method in terms of speed and reduces the growth of the optimized model size by an order of magnitude.
+    \item Two variants of a redistancing algorithm for sparse representations, one of which is specifically tailored to the requirements of differentiable rendering.
+\end{itemize}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Materials and Methods}
 
-\subsection{Overview}
+% Реконструкция происходит в несколько эпох. Каждая эпоха состоит из нескольких сотен итераций, каждая итерация состоит из следующих шагов: сперва проводится отрисовка batch of images using reference views с аккумулированием градиентов, после этого к дистанциям применяется регуляризация; расчитывается функция потерь между полученными изображениями и соответствующими им референсами, следом gradients are backpropagated, в конце итерации применяется локальный редистансинг. Между эпохами SDF is sparsified and upsampled, после чего к ней применяется глобальный редистансинг.
+The reconstruction is performed over multiple epochs. Each epoch consists of several hundred iterations, and each iteration includes the following steps. First, a batch of images is rendered using reference views with gradient accumulation. Next, regularization is applied to the distance values. The loss function is then computed between the rendered images and their corresponding references, followed by gradient backpropagation. At the end of each iteration, a local redistancing procedure is applied. Between epochs, the signed distance function (SDF) is sparsified and upsampled, after which a global redistancing step is performed.
 
-About the algorithm (add pseudocode), what is completely new, what is modified, what is left unchanged.
+\subsection{Rendering and Gradient Evaluation}
 
-\subsection{Gradient evaluation}
+% Наш метод использует в реконструкции sparse brick sets (SBS) \cite{HanssonSoderlund}. Это гибрид между иерархическим и регулярным представлением: a BVH tree, в листьях которого содержатся small regular SDF grids, благодаря чему можно отбрасывать те листья, в которых отсутствует поверхность объекта. A ray first traverses the BVH; if an intersection with a leaf node is found, it then intersects the voxels of the brick. The ray traverses each brick along its path until it hits the surface or there are no bricks left. Помимо самого представления, в нашем методе используются предложенные для SBS методы поиска пересечения луча: метод Ньютона и аналитический метод. Для корректного расчёта градиентов мы используем метод релаксированной границы \cite{RelaxBoundary}, адаптированный под эти методы. Оба метода пересекают луч с вокселем и основаны на том, что внутри вокселя, SDF along the ray представима в виде кубического полинома, отличаются эти методы только способом нахождения корня. С другой стороны, основной критерий точки релаксированной границы: эта точка является локальным минимумом of SDF along the ray, поэтому адаптация поиска точек релаксированной границы внутри вокселя сводится к нахождению нужного корня квадратного уравнения. Однако, часто в случае трилинейной интерполяции локальный минимум достигается на границе вокселей, и их проверка также реализована.
+Our method employs Sparse Brick Sets (SBS) \cite{HanssonSoderlund} for reconstruction. This representation is a hybrid between hierarchical and regular structures: a BVH tree whose leaf nodes contain small regular SDF grids, allowing efficient culling of leaves that do not contain the object surface. A ray first traverses the BVH; upon intersecting a leaf node, it proceeds to intersect the voxels of the corresponding brick. The ray continues traversing bricks along its path until it either hits the surface or no further bricks remain.
 
-\subsection{Upsampling (and sparsification)}
+In addition to the representation itself, our method utilizes ray-surface intersection techniques proposed for SBS, namely the Newton method and an analytical approach. For correct gradient computation, we adopt the relaxed boundary method \cite{RelaxBoundary}, adapted to these intersection techniques. Both methods compute ray-voxel intersections under the assumption that the SDF along the ray within a voxel can be represented as a cubic polynomial; they differ only in the root-finding procedure.
+
+On the other hand, the key property of a relaxed boundary point is that it corresponds to a local minimum of the SDF along the ray. Therefore, adapting relaxed boundary point detection within a voxel reduces to finding the appropriate root of a quadratic equation. However, in the case of trilinear interpolation, the local minimum is often attained at voxel boundaries, and these boundary cases are explicitly handled as well.
+
+% Алгоритм реализован с использованием C++ and Vulkan, без систем автоматического дифференцирования -- все градиенты получены аналитически. Для поддержки произвольного числа семплов на пиксель, в шейдере, используемом для отрисовки оптимизируемой модели и оценки граничного интеграла, реализовано аккумулирование градиентов каждые 16 семплов с использованием полученного цвета, а не после получения финального цвета пикселя. Это нужно, так как для каждого семпла требуется хранить информацию о том, в какой воксель он попал, а для точной оценки градиента требуется цвет пикселя, полученный после семплирования; при этом число семплов задаётся пользователем и заранее неизвестно. Мы исходим из предположения, что 16 семплов достаточно для получения цвета, близкого к финальному, и храним информацию о вокселях в стеке фиксированного размера.
+The algorithm is implemented in C++ and Vulkan without the use of automatic differentiation; all gradients are derived analytically. To support an arbitrary number of samples per pixel, the shader used for rendering the optimized model and evaluating the boundary integral performs gradient accumulation every 16 samples using the intermediate color estimate, rather than after computing the final pixel color. This design is necessary because each sample requires storing information about the voxel it intersects, while accurate gradient estimation depends on the pixel color obtained after sampling. At the same time, the number of samples is user-defined and not known in advance. We assume that 16 samples are sufficient to produce a color close to the final value and therefore store voxel information in a fixed-size stack.
 
 \subsection{Redistancing}
 
+% После шага градиентного спуска обновлённые дистанции, строго говоря, больше не задают SDF: они не соответствуют настоящим расстояниям до поверхности, и сетка больше не удовлетворяет eikonal equation. Для восстановления этого свойства в базовом методе, grid values are redistanced с использованием fast sweeping method \cite{RedistFSM}. Адаптация этого шага под разреженные представления нетривиальна: при пересчёте дистанций в одном брике модели нужно дополнительно найти и учитывать соседние брики, не связанные с ним дистанциями (т.е. промежуточные брики удалены, но сам сосед влияет на корректное значение дистанций).
+After a gradient descent step, the updated distances, strictly speaking, no longer represent a signed distance function (SDF): they do not correspond to true distances to the surface, and the grid no longer satisfies the Eikonal equation. To restore this property in the baseline method, the grid values are redistanced using the fast sweeping method \cite{RedistFSM}. Adapting this step to sparse representations is nontrivial: when recomputing distances within a given brick of the model, it is additionally necessary to identify and account for neighboring bricks that are not directly connected to it via stored distances (i.e., intermediate bricks may be absent, yet such neighbors still influence the correct distance values).
 
-Materials and Methods should be described with sufficient details to allow others to replicate and build on published results. Please note that publication of your manuscript implicates that you must make all materials, data, computer code, and protocols associated with the publication available to readers. Please disclose at the submission stage any restrictions on the availability of materials or information. New methods and protocols should be described in detail while well-established methods can be briefly described and appropriately cited.
+% Полноценной адаптацией редистансинга под SBS является глобальный редистансинг. Для корректного расчёта дистанций добавлен шаг экстраполяции: для каждой грани брика, к которой не примыкает другой брик (нет непосредственного соседа), и она не принадлежит границе всей модели, ищутся соседи, и дистанции этой грани экстраполируются из самой ближней грани этих соседей \ref{figNeighborBricks}. Выбираются минимальные по модулю значения дистанций среди текущих и всех рассчитанных. Сам редистансинг распараллелен по брикам, поскольку fast-sweeping method схемы, основанные на самих значениях, are more algorithmically complex for SBS.
+Global redistancing constitutes a full adaptation of the redistancing procedure for SBS. To ensure correct distance computation, an extrapolation step is introduced: for each face of a brick that does not adjoin another brick (i.e., has no immediate neighbor), neighboring bricks are identified, and the distances for that face are extrapolated from the nearest face of these neighbors (see Fig. \ref{figNeighborBricks}). The minimum absolute values are then selected among the current and all computed distances. The redistancing procedure itself is parallelized across bricks, as existing fast-sweeping method schemes are algorithmically more complex for SBS.
 
-Research manuscripts reporting large datasets that are deposited in a publicly available database should specify where the data have been deposited and provide the relevant accession numbers. If the accession numbers have not yet been obtained at the time of submission, please state that they will be provided during review. They must be provided prior to publication.
+% Одним полезным свойством voxel-based intersection methods является отсутствие той зависимости от корректных дистанций, которая есть у sphere tracing. Благодаря этому можно игнорировать воксель, если все его дистанции больше, чем relaxed epsilon: в этом случае мы не найдём в нём ни пересечение, ни точку релаксированной границы. В связи с этим нас меньше интересует значение дистанций в бриках, которые не хранят поверхность, в частности, к ним необязательно применять редистансинг. Локальный редистансинг является оптимизированной версией шага редистансинга, применяемой после каждой итерации метода. Первая оптимизация заключается в том, что пересчитываются дистанции только в бриках, содержащих поверхность. Вторая оптимизация: предполагается, что дистанции в бриках с поверхностью зависят только от поверхности в этом брике -- не происходит обращения к дистанциям в других бриках, что упрощает логику и увеличивает локальность без ухудшения качества реконструкции.
+One useful property of voxel-based intersection methods is that they do not rely on correct distances as much as sphere tracing does. As a result, a voxel can be safely ignored if all its distance values exceed a relaxed epsilon; in this case, neither an intersection nor a relaxed boundary point can be found within it. Consequently, the exact values of distances in bricks that do not contain the surface are of limited importance, and in particular, redistancing is not required for such bricks.
 
-Interventionary studies involving animals or humans, and other studies require ethical approval must list the authority that provided approval and the corresponding ethical approval code.
+Local redistancing is an optimized variant of the redistancing step performed after each iteration of the method. The first optimization restricts distance recomputation to bricks that contain the surface. The second optimization assumes that distances within surface-containing bricks depend only on the surface within the same brick, without referencing distances from neighboring bricks. This assumption simplifies the implementation and improves data locality without degrading reconstruction quality. The simplified comparison of redistancing variants is shown in Fig. \ref{figRedistTypes}.
 
-In this section, where applicable, authors are required to disclose details of how gen-erative artificial intelligence (GenAI) has been used in this paper (e.g., to generate text, data, or graphics, or to assist in study design, data collection, analysis, or interpretation). The use of GenAI for superficial text editing (e.g., grammar, spelling, punctuation, and formatting) does not need to be declared.
+\subsection{Upsampling and Sparsification}
 
-\begin{quote}
-This is an example of a quote.
-\end{quote}
+% Для фиксированного размера SDF, оптимизация достигает своего предела за несколько сотен итераций. Для увеличения предела качества реконструкции нужно to upsample the grid (для удобства мы считаем, что this step отделяет optimization epochs). От того, сколько эпох мы можем себе позволить, сохранив достаточно высокую скорость итерации и приемлемый размер представления, напрямую зависит качество итоговой модели. Для SBS, upsampling заключается в добавлении новых дистанций и получении из одного старого брика восьми новых; каждый содержит столько же дистанций, что и исходный, но представляет в восемь раз меньшее пространство. Был добавлен sparsification step: добавляются и удаляются брики таким образом, чтобы итоговое представление состояло из бриков с поверхностью, а также padding в 1 брик вокруг них.
+% Sparsification is always applied between epochs, но также её можно применять во время эпохи, что необходимо при реконструкции моделей с тонкими деталями: они не могут быть восстановлены на ранних эпохах из-за большого масштаба сетки, а на поздних эпохах брики, находящиеся на месте этих деталей, могут быть уже удалены.
+For a fixed SDF resolution, the optimization converges after several hundred iterations. To further improve reconstruction quality, it is necessary to upsample the grid (for convenience, we treat this step as separating optimization epochs). The final model quality directly depends on how many epochs can be afforded while maintaining a sufficiently high iteration speed and a reasonable representation size. In the SBS approach, upsampling is performed by introducing new distance values and subdividing each existing brick into eight smaller ones; each new brick contains the same number of distance samples as the original but represents a spatial region eight times smaller. A sparsification step is also introduced: bricks are added and removed such that the final representation consists only of bricks containing surface regions, along with a one-brick padding around them. Sparsification is always applied between epochs, but it can also be applied during an epoch, which is necessary when reconstructing models with fine details: such details cannot be reconstructed in early epochs due to the large scale of the grid, and in later epochs the bricks located in the place of these details may already have been removed.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Results}
 
-% This section состоит из двух частей: первая часть показывает сравнения с базовым методом по времени реконструкции, качеству и размеру полученных моделей; вторая часть посвящена дополнительным исследованиям (ablation study) работы метода. Для всех экспериментов использовались AMD Ryzen 97950X CPU and NVidia GeForce RTX 4090 GPU.
+% This section состоит из двух частей: первая часть показывает сравнения с базовым методом по времени реконструкции, качеству и размеру полученных моделей; вторая часть посвящена ablation study метода. Для всех экспериментов использовались AMD Ryzen 97950X CPU and NVidia GeForce RTX 4090 GPU.
+This section consists of two parts: the first presents a comparison with the baseline method in terms of reconstruction time, quality, and the size of the resulting models; the second part is devoted to an ablation study of the proposed method. All experiments were conducted using an AMD Ryzen 9 7950X CPU and an NVIDIA GeForce RTX 4090 GPU.
 
 \subsection{Comparison to baseline}
 
@@ -214,17 +271,12 @@ This is an example of a quote.
 
 % ! График качества: три столбика - базовый, наш (та же эпоха), наш (то же время)
 
-% Figure~\ref{} показывает среднее по ракурсам значение PSNR для рендеров референса и реконструкции. Представлено три результата: работа базового метода (5 эпох), работа нашего метода для того же числа эпох, а также результат работы нашего метода за то же время, которое работал базовый метод (7 эпох). Сравнение первого со вторым приводится для валидации, его цель -- показать сопоставимость результатов работы двух методов. Сравнение первого с третьим демонстрирует преимущество нашего метода в качестве реконструкции.
-% % ! СПОРНО, АККУРАТНЕЕ С ЭТИМ АБЗАЦЕМ
-% Отрисовка референсов и результирующих рендеров в эталонной реализации проводилась с 2048 лучами на пиксель для минимизации влияния шума. Результаты сравнения PSNR служат подтверждением того, что отсутствие вторичных лучей в нашей реализации не повлияло на качество оптимизации.
+% Figure~\ref{} показывает среднее по ракурсам значение PSNR для рендеров референса и реконструкции. Представлено три результата: работа базового метода (5 эпох), работа нашего метода для того же числа эпох, а также результат работы нашего метода за то же время, которое работал базовый метод (7 эпох). Сравнение первого со вторым приводится для валидации, его цель -- показать сопоставимость результатов работы двух методов. Сравнение первого с третьим демонстрирует преимущество нашего метода в качестве реконструкции.Отрисовка референсов и результирующих рендеров (после окончания оптимизации) в эталонной реализации проводилась с 2048 лучами на пиксель для минимизации влияния шума.
 
 
 % ! Таблица размеров: как в SparseDR статье, но для каждой эпохи и каждой модели.
 
 % В таблице Table~\ref{} приведены размеры моделей, полученных для каждой модели на каждой эпохе. The sizes of SDF grids are the same for all models on each epoch. В результате апсемплинга размер сетки увеличивается в 8 раз. Благодаря использованию разреженной структуры данных, размер моделей, полученных нашим методом, меньше размера грида начиная с третьей эпохи. Кроме того, размер модели после апсемплинга примерно в 4 раза больше исходной, что ожидаемо, так как модель хранит только дистанции у поверхности. Таким образом, рост размера моделей в нашем методе на порядок меньше, чем в базовом.
-
-
-! For the baseline: Try to achieve correct reconstruction with the black background.
 
 
 \subsection{Ablation study}
@@ -235,164 +287,26 @@ This is an example of a quote.
 % 1. Реконструкция с sphere tracing vs. Newton/Analytic -- второй быстрее
 % 2. Реконструкция с обеими версиями редистансинга -- ещё быстрее, и качество не проседает
 
-% Поэтапно сравним скорость и качество работы метода, начав с идентичной базовому методу конфигурации sphere tracing + редистансинг, сначала сменив метод поиска пересечения на Newton/Analytical, а затем перейдя на локальный редистансинг.
+% Поэтапно сравним скорость и качество работы метода, начав с идентичной базовому методу конфигурации sphere tracing + редистансинг (64 spp/4 boundary spp), сначала сменив метод поиска пересечения на Newton/Analytical, а затем перейдя на локальный редистансинг.
 
 
 % 3. Демонстрация качества (бар плот) для каждой эпохи -- PSNR растёт линейно
 
+% 4. Исследование пиковой нагрузки на память: RAM, VRAM
+
 % ?. Эксперименты с релакс-эпсилон, регуляризацией
 
-
-\subsection{Figures, Tables and Schemes}
-
-All figures and tables should be cited in the main text as Figure~\ref{fig1}, Table~\ref{tab1}, etc.
-
-\begin{figure}[H]
-%\isPreprints{\centering}{} % Only used for preprints
-\includegraphics[width=7.5 cm]{Definitions/logo-mdpi}
-\caption{This is a figure. Schemes follow the same formatting.\label{fig1}}
-\end{figure}   
-\unskip
-
-\begin{table}[H] 
-%\small % Change table font size
-\caption{This is a table caption. Tables should be placed in the main text near to the first time they are~cited.\label{tab1}}
-%\isPreprints{\centering}{} % Only used for preprints
-\begin{tabularx}{\textwidth}{CCC}
-\toprule
-\textbf{Title 1}	& \textbf{Title 2}	& \textbf{Title 3}\\
-\midrule
-Entry 1		& Data			& Data\\
-Entry 2		& Data			& Data \textsuperscript{1}\\
-\bottomrule
-\end{tabularx}
-
-\noindent{\footnotesize{\textsuperscript{1} Tables may have a footer.}}
-\end{table}
-
-The text continues here (Figure~\ref{fig2} and Table~\ref{tab2}).
-
-% Example of a figure that spans the whole page width and with subfigures. The same concept works for tables, too.
-\begin{figure}[H]
-%\isPreprints{}{% This command is only used for ``preprints''.
-\begin{adjustwidth}{-\extralength}{0cm}
-\centering
-%} % If the paper is ``preprints'', please uncomment this parenthesis.
-\subfloat[\centering]{\includegraphics[width=7.0cm]{Definitions/logo-mdpi}}
-%\hfill
-\subfloat[\centering]{\includegraphics[width=7.0cm]{Definitions/logo-mdpi}}\\
-\subfloat[\centering]{\includegraphics[width=7.0cm]{Definitions/logo-mdpi}}
-%\hfill
-\subfloat[\centering]{\includegraphics[width=7.0cm]{Definitions/logo-mdpi}}
-%\isPreprints{}{% This command is only used for ``preprints''.
-\end{adjustwidth}
-%} % If the paper is ``preprints'', please uncomment this parenthesis.
-\caption{This is a wide figure. Schemes follow the same formatting. If there are multiple panels, they should be listed as: (\textbf{a}) Description of what is contained in the first panel. (\textbf{b}) Description of what is contained in the second panel. (\textbf{c}) Description of what is contained in the third panel. (\textbf{d}) Description of what is contained in the fourth panel. Figures should be placed in the main text near to the first time they are cited. A caption on a single line should be centered.\label{fig2}}
-\end{figure} 
-
-\begin{table}[H]
-\caption{This is a wide table.\label{tab2}}
-%\isPreprints{\centering}{% This command is only used for ``preprints''.
-	\begin{adjustwidth}{-\extralength}{0cm}
-%} % If the paper is ``preprints'', please uncomment this parenthesis.
-%\isPreprints{\begin{tabularx}{\textwidth}{CCCC}}{% This command is only used for ``preprints''.
-		\begin{tabularx}{\fulllength}{CCCC}
-%} % If the paper is ``preprints'', please uncomment this parenthesis.
-			\toprule
-			\textbf{Title 1}	& \textbf{Title 2}	& \textbf{Title 3}     & \textbf{Title 4}\\
-			\midrule
-\multirow[m]{3}{*}{Entry 1 *}	& Data			& Data			& Data\\
-			  	                   & Data			& Data			& Data\\
-			             	      & Data			& Data			& Data\\
-                   \midrule
-\multirow[m]{3}{*}{Entry 2}    & Data			& Data			& Data\\
-			  	                  & Data			& Data			& Data\\
-			             	     & Data			& Data			& Data\\
-			\bottomrule
-		\end{tabularx}
-%		\isPreprints{}{% This command is only used for ``preprints''.
-	\end{adjustwidth}
-%} % If the paper is ``preprints'', please uncomment this parenthesis.
-	\noindent{\footnotesize{* Tables may have a footer.}}
-\end{table}
-
-%\begin{listing}[H]
-%\caption{Title of the listing}
-%\rule{\columnwidth}{1pt}
-%\raggedright Text of the listing. In font size footnotesize, small, or normalsize. Preferred format: left aligned and single spaced. Preferred border format: top border line and bottom border line.
-%\rule{\columnwidth}{1pt}
-%\end{listing}
-
-Text.
-
-Text.
-
-\subsection{Formatting of Mathematical Components}
-
-This is the example 1 of equation:
-\begin{linenomath}
-\begin{equation}
-a = 1,
-\end{equation}
-\end{linenomath}
-the text following an equation need not be a new paragraph. Please punctuate equations as regular text.
-%% If the documentclass option "submit" is chosen, please insert a blank line before and after any math environment (equation and eqnarray environments). This ensures correct linenumbering. The blank line should be removed when the documentclass option is changed to "accept" because the text following an equation should not be a new paragraph.
-
-This is the example 2 of equation:
-%\isPreprints{}{% This command is only used for ``preprints''.
-\begin{adjustwidth}{-\extralength}{0cm}
-%} % If the paper is ``preprints'', please uncomment this parenthesis.
-\begin{equation}
-a = b + c + d + e + f + g + h + i + j + k + l + m + n + o + p + q + r + s + t + u + v + w + x + y + z
-\end{equation}
-%\isPreprints{}{% This command is only used for ``preprints''.
-\end{adjustwidth}
-%} % If the paper is ``preprints'', please uncomment this parenthesis.
-
-%% Example of a page in landscape format (with table and table footnote).
-%\startlandscape
-%\begin{table}[H] %% Table in wide page
-%%\isPreprints{\centering}{} % This command is only used for ``preprints''.
-%\caption{This is a very wide table.\label{tab3}}
-%	\begin{tabularx}{\textwidth}{CCCC}
-%		\toprule
-%		\textbf{Title 1}	& \textbf{Title 2}	& \textbf{Title 3}	& \textbf{Title 4}\\
-%		\midrule
-%		Entry 1		& Data			& Data			& This cell has some longer content that runs over two lines.\\
-%		Entry 2		& Data			& Data			& Data\textsuperscript{1}\\
-%		\bottomrule
-%	\end{tabularx}
-%%\isPreprints{}{% This command is only used for ``preprints''.
-%	\begin{adjustwidth}{+\extralength}{0cm}
-%%} % If the paper is ``preprints'', please uncomment this parenthesis.
-%		\noindent\footnotesize{\textsuperscript{1} This is a table footnote.}
-%%\isPreprints{}{% This command is only used for ``preprints''.
-%	\end{adjustwidth}
-%%} % If the paper is ``preprints'', please uncomment this parenthesis.
-%\end{table}
-%\finishlandscape
-
-Please punctuate equations as regular text. Theorem-type environments (including propositions, lemmas, corollaries etc.) can be formatted as follows:
-%% Example of a theorem:
-\begin{Theorem}
-Example text of a theorem.
-\end{Theorem}
-
-The text continues here. Proofs must be formatted as follows:
-
-%% Example of a proof:
-\begin{proof}[Proof of Theorem 1]
-Text of the proof. Note that the phrase ``of Theorem 1'' is optional if it is clear which theorem is being referred to.
-\end{proof}
-The text continues here.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Discussion}
 
-Authors should discuss the results and how they can be interpreted from the perspective of previous studies and of the working hypotheses. The findings and their implications should be discussed in the broadest context possible. Future research directions may also be highlighted.
+% В данной работе предложен метод дифференцируемого рендеринга разреженных SDF; проведённые эксперименты демонстрируют его потенциал для задачи восстановления геометрии. Отметим, что в текущей реализации нет вторичных лучей, однако архитектура метода не препятствует его расширению до полноценной трассировки путей -- её добавление потребует дополнительного времени на реализацию и оптимизацию, но полученные результаты многообещающие и служат оправданной мотивацией для дальнейшей разработки и исследования возможностей метода.
 
-\subsection{Limitations}
-Write about quality issues with PSNR metric, idea about trying SSIM.
+% Отметим также недостатки использования MSE в качестве функции потерь. На рисунке \ref{LimPSNR} показан неудачный результат реконструкции, который даёт хороший результат согласно PSNR. Причина кроется в известном недостатке MSE -- она не учитывает структурные особенности изображений -- в связи с чем рассматривается идея применения DSSIM в качестве функции потерь на замену MSE.
+In this work, we propose a method for differentiable rendering of sparse SDFs. The conducted experiments demonstrate its potential for geometry reconstruction tasks. It should be noted that the current implementation does not include secondary rays; however, the method's architecture does not preclude its extension to full path tracing. Incorporating this feature would require additional development and optimization effort, but the obtained results are promising and provide strong motivation for further research and refinement of the method.
+
+We also highlight the limitations of using MSE as a loss function. Figure \ref{LimPSNR} illustrates a reconstruction result that appears inadequate despite achieving a high PSNR score. This discrepancy stems from a well-known drawback of MSE, namely its inability to capture structural characteristics of images. In this regard, the use of DSSIM as an alternative loss function to replace MSE is considered.
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % \section{Conclusions}
@@ -435,7 +349,10 @@ Write about quality issues with PSNR metric, idea about trying SSIM.
 %}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\authorcontributions{For research articles with several authors, a short paragraph specifying their individual contributions must be provided. The following statements should be used ``Conceptualization, X.X. and Y.Y.; methodology, X.X.; software, X.X.; validation, X.X., Y.Y. and Z.Z.; formal analysis, X.X.; investigation, X.X.; resources, X.X.; data curation, X.X.; writing---original draft preparation, X.X.; writing---review and editing, X.X.; visualization, X.X.; supervision, X.X.; project administration, X.X.; funding acquisition, Y.Y. All authors have read and agreed to the published version of the manuscript.'', please turn to the  \href{http://img.mdpi.org/data/contributor-role-instruction.pdf}{CRediT taxonomy} for the term explanation. Authorship must be limited to those who have contributed substantially to the work~reported.}
+\authorcontributions{
+    Conceptualization, A.B.; methodology, A.B.; software, A.B. and A.G.; validation, A.B.; formal analysis, A.B.; investigation, A.B.; resources, A.B.; data curation, A.B.; writing---original draft preparation, A.B.; writing---review and editing, A.G. and V.F.; visualization, A.B.; supervision, V.F.; project administration, A.G. and V.F.; funding acquisition, V.F. All authors have read and agreed to the published version of the manuscript.
+    % For research articles with several authors, a short paragraph specifying their individual contributions must be provided. The following statements should be used ``'', please turn to the  \href{http://img.mdpi.org/data/contributor-role-instruction.pdf}{CRediT taxonomy} for the term explanation. Authorship must be limited to those who have contributed substantially to the work~reported.
+    }
 
 \funding{Please add: ``This research received no external funding'' or ``This research was funded by NAME OF FUNDER grant number XXX.'' and  and ``The APC was funded by XXX''. Check carefully that the details given are accurate and use the standard spelling of funding agency names at \url{https://search.crossref.org/funding}, any errors may affect your future funding.}
 
@@ -524,29 +441,88 @@ All appendix sections must be cited in the main text. In the appendices, Figures
 
 % APA format
 \begin{thebibliography}{999}
-% Reference 1
-\bibitem[\protect\citeauthoryear{Azikiwe \BBA\ Bello}{{2020a}}]{ref-journal}
-Azikiwe, H., \& Bello, A. (2020a). Title of the cited article. \textit{Journal Title}, \textit{Volume}(Issue), 
-Firstpage--Lastpage/Article Number.
-% Reference 2
-\bibitem[\protect\citeauthoryear{Azikiwe \BBA\ Bello}{{2020b}}]{ref-book1}
-Azikiwe, H., \& Bello, A. (2020b). \textit{Book title}. Publisher Name.
-% Reference 3
-\bibitem[Davison(1623/2019)]{ref-book2}
-Davison, T. E. (2019). Title of the book chapter. In A. A. Editor (Ed.), \textit{Title of the book: Subtitle} 
-(pp. Firstpage--Lastpage). Publisher Name. (Original work published 1623) (Optional).
-% Reference 4
-\bibitem[Fistek et al.(2017)]{ref-proceeding}
-Fistek, A., Jester, E., \& Sonnenberg, K. (2017, Month Day). Title of contribution [Type of contribution]. Conference Name, Conference City, Conference Country.
-% Reference 5
-\bibitem[Hutcheson(2012)]{ref-thesis}
-Hutcheson, V. H. (2012). \textit{Title of the thesis} [XX Thesis, Name of Institution Awarding the Degree].
-% Reference 6
-\bibitem[Lippincott \& Poindexter(2019)]{ref-unpublish}
-Lippincott, T., \& Poindexter, E. K. (2019). \textit{Title of the unpublished manuscript} [Unpublished manuscript/Manuscript in prepara-tion/Manuscript submitted for publication]. Department Name, Institution Name.
-% Reference 7
-\bibitem[Harwood(2008)]{ref-url}
-Harwood, J. (2008). \textit{Title of the cited article}. Available online: URL (accessed on Day Month Year).
+% % Reference 1
+% \bibitem[\protect\citeauthoryear{Azikiwe \BBA\ Bello}{{2020a}}]{ref-journal}
+% Azikiwe, H., \& Bello, A. (2020a). Title of the cited article. \textit{Journal Title}, \textit{Volume}(Issue), 
+% Firstpage--Lastpage/Article Number.
+% % Reference 2
+% \bibitem[\protect\citeauthoryear{Azikiwe \BBA\ Bello}{{2020b}}]{ref-book1}
+% Azikiwe, H., \& Bello, A. (2020b). \textit{Book title}. Publisher Name.
+% % Reference 3
+% \bibitem[Davison(1623/2019)]{ref-book2}
+% Davison, T. E. (2019). Title of the book chapter. In A. A. Editor (Ed.), \textit{Title of the book: Subtitle} 
+% (pp. Firstpage--Lastpage). Publisher Name. (Original work published 1623) (Optional).
+% % Reference 4
+% \bibitem[Fistek et al.(2017)]{ref-proceeding}
+% Fistek, A., Jester, E., \& Sonnenberg, K. (2017, Month Day). Title of contribution [Type of contribution]. Conference Name, Conference City, Conference Country.
+% % Reference 5
+% \bibitem[Hutcheson(2012)]{ref-thesis}
+% Hutcheson, V. H. (2012). \textit{Title of the thesis} [XX Thesis, Name of Institution Awarding the Degree].
+% % Reference 6
+% \bibitem[Lippincott \& Poindexter(2019)]{ref-unpublish}
+% Lippincott, T., \& Poindexter, E. K. (2019). \textit{Title of the unpublished manuscript} [Unpublished manuscript/Manuscript in prepara-tion/Manuscript submitted for publication]. Department Name, Institution Name.
+% % Reference 7
+% \bibitem[Harwood(2008)]{ref-url}
+% Harwood, J. (2008). \textit{Title of the cited article}. Available online: URL (accessed on Day Month Year).
+
+%%%%    MyRefs    %%%%
+\bibitem[Mildenhall(2020)]{NeRF}
+Ben Mildenhall, Pratul P. Srinivasan, Matthew Tancik, Jonathan T. Barron, Ravi Ramamoorthi, and Ren Ng. (2021). NeRF: representing scenes as neural radiance fields for view synthesis. \textit{Commun. ACM}, 65, 1 (January 2022), 99-106. doi: 10.1145/3503250.
+
+\bibitem[Kerbl(2023)]{3DGS}
+Bernhard Kerbl, Georgios Kopanas, Thomas Leimkuehler, and George Drettakis. (2023). 3D Gaussian Splatting for Real-Time Radiance Field Rendering. \textit{ACM Trans. Graph.}, 42, 4, Article 139 (August 2023), 14 pages. doi: 10.1145/3592433.
+
+\bibitem[Huang(2024)]{2DGS}
+Binbin Huang, Zehao Yu, Anpei Chen, Andreas Geiger, and Shenghua Gao. (2024). 2D Gaussian Splatting for Geometrically Accurate Radiance Fields. \textit{ACM SIGGRAPH 2024 Conference Papers (SIGGRAPH '24)}, Association for Computing Machinery, New York, NY, USA, Article 32, 1-11. doi: 10.1145/3641519.3657428.
+
+\bibitem[Wang(2023)]{NeUS2}
+Y. Wang, Q. Han, M. Habermann, K. Daniilidis, C. Theobalt and L. Liu. (2023). NeuS2: Fast Learning of Neural Implicit Surfaces for Multi-view Reconstruction. \textit{2023 IEEE/CVF International Conference on Computer Vision (ICCV)}, Paris, France, 2023, pp. 3272-3283, doi: 10.1109/ICCV51070.2023.00305.
+
+\bibitem[Li(2023)]{NeuAngelo}
+Z. Li et al. (2023). NeuralAngelo: High-Fidelity Neural Surface Reconstruction. \textit{2023 IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR)}, Vancouver, BC, Canada, 2023, pp. 8456-8465, doi: 10.1109/CVPR52729.2023.00817.
+
+\bibitem[Held(2026)]{MeshS}
+Held, Jan and Son, Sanghyun and Vandeghen, Renaud and Rebain, Daniel and Gadelha, Matheus and Zhou, Yi and Cioppa, Anthony and Lin, Ming C. and Van Droogenbroeck, Marc and Tagliasacchi, Andrea. (2026). MeshSplatting: Differentiable Rendering with Opaque Meshes. \textit{Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR)}, 2026, pp. 7320-7329.
+
+\bibitem[Guedon(2024)]{SuGaR}
+Gu\'edon, A., \& Lepetit, V. (2024). SuGaR: Surface-Aligned Gaussian Splatting for Efficient 3D Mesh Reconstruction and High-Quality Mesh Rendering. \textit{Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR)}, 5354--5363.
+
+\bibitem[Yariv(2023)]{BakedSDF}
+Lior Yariv, Peter Hedman, Christian Reiser, Dor Verbin, Pratul P. Srinivasan, Richard Szeliski, Jonathan T. Barron, and Ben Mildenhall. (2023). BakedSDF: Meshing Neural SDFs for Real-Time View Synthesis. \textit{ACM SIGGRAPH 2023 Conference Proceedings (SIGGRAPH '23)}, Association for Computing Machinery, New York, NY, USA, Article 46, pp. 1-9. doi: 10.1145/3588432.3591536.
+
+\bibitem[Rakotosaona(2024)]{NeRFMeshing}
+Rakotosaona, M. -J., Manhardt, F., Arroyo, D. M., Niemeyer, M., Kundu, A., \& Tombari, F. (2024). NeRFMeshing: Distilling Neural Radiance Fields into Geometrically-Accurate 3D Meshes. \textit{2024 International Conference on 3D Vision (3DV)}, Davos, Switzerland, 2024, pp. 1156-1165, doi: 10.1109/3DV62453.2024.00093.
+
+\bibitem[Li(2018)]{EdgeSampling}
+Tzu-Mao Li, Miika Aittala, Frédo Durand, and Jaakko Lehtinen. (2018). Differentiable Monte Carlo ray tracing through edge sampling. \textit{ACM Trans. Graph.}, 37, 6, Article 222 (December 2018), 11 pages. doi: 10.1145/3272127.3275109.
+
+\bibitem[Loubet(2019)]{Reparam}
+Guillaume Loubet, Nicolas Holzschuch, and Wenzel Jakob. (2019). Reparameterizing discontinuous integrands for differentiable rendering. \textit{ACM Trans. Graph.}, 38, 6, Article 228 (December 2019), 14 pages. doi: 10.1145/3355089.3356510.
+
+\bibitem[Bangaru(2020)]{WAS}
+Sai Praveen Bangaru, Tzu-Mao Li, and Frédo Durand. (2020). Unbiased warped-area sampling for differentiable rendering. \textit{ACM Trans. Graph.}, 39, 6, Article 245 (December 2020), 18 pages. doi: 10.1145/3414685.3417833.
+
+\bibitem[Nicolet(2021)]{Nicolet}
+Baptiste Nicolet, Alec Jacobson, and Wenzel Jakob. (2021). Large steps in inverse rendering of geometry. \textit{ACM Trans. Graph.}. 40, 6, Article 248 (December 2021), 13 pages. doi: 10.1145/3478513.3480501.
+
+\bibitem[Vicini(2022)]{DRSDF}
+Delio Vicini, Sébastien Speierer, and Wenzel Jakob. 2022. Differentiable signed distance function rendering. \textit{ACM Trans. Graph.}, 41, 4, Article 125 (July 2022), 18 pages. doi: 10.1145/3528223.3530139.
+
+\bibitem[Bangaru(2022)]{NeuDRSDF}
+Sai Praveen Bangaru, Michael Gharbi, Fujun Luan, Tzu-Mao Li, Kalyan Sunkavalli, Milos Hasan, Sai Bi, Zexiang Xu, Gilbert Bernstein, and Fredo Durand. (2022). Differentiable Rendering of Neural SDFs through Reparameterization. \textit{SIGGRAPH Asia 2022 Conference Papers (SA '22)}. Association for Computing Machinery, New York, NY, USA, Article 5, 1-9. doi: 10.1145/3550469.3555397.
+
+\bibitem[Wang(2024)]{RelaxBoundary}
+Zichen Wang, Xi Deng, Ziyi Zhang, Wenzel Jakob, and Steve Marschner. (2024). A Simple Approach to Differentiable Rendering of SDFs. \textit{SIGGRAPH Asia 2024 Conference Papers (SA '24)}. Association for Computing Machinery, New York, NY, USA, Article 119, 1-11. doi: 10.1145/3680528.3687573.
+
+\bibitem[Hansson-Söderlund(2022)]{HanssonSoderlund}
+Herman Hansson-Söderlund, Alex Evans, and Tomas Akenine-Möller. (2022). Ray Tracing of Signed Distance Function Grids. \textit{Journal of Computer Graphics Techniques (JCGT)}, vol. 11, no. 3, 94-113, 2022.
+
+\bibitem[Detrixhe(2013)]{RedistFSM}
+Miles Detrixhe, Frédéric Gibou, Chohong Min. (2013). A parallel fast sweeping method for the Eikonal equation. \textit{Journal of Computational Physics}, Volume 237, 2013, Pages 46-55, ISSN 0021-9991, doi: 10.1016/j.jcp.2012.11.042.
+
+
+
+
 \end{thebibliography}
 
 
