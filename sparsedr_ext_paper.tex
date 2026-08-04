@@ -171,9 +171,15 @@ However, when both geometry and material properties are required -- for instance
 \subsection{Differentiable physically-based rendering}
 
 % В 2018 был представлен edge sampling, метод дифференцируемого рендеринга, применимый для трассировки путей \cite{EdgeSampling}. Их подход учитывал первичную и вторичную видимость и впервые дал возможность корректно дифференцировать по произвольным параметрам сцены. В работе было показано, что при дифференцировании по параметрам, задающим форму объекта, подынтегральное выражение терпит разрывы, и положение этих разрывов зависит от вышеупомянутых параметров. В этом случае производная интеграла получается из транспортной теоремы Рейнольдса:
-In 2018, edge sampling, a differentiable rendering method applicable to path tracing, was introduced \cite{EdgeSampling}. The proposed approach accounts for both primary and secondary visibility and, for the first time, enables correct differentiation with respect to arbitrary scene parameters. The study demonstrated that when differentiating with respect to parameters defining object shape, the integrand becomes discontinuous, and the locations of these discontinuities depend on the aforementioned parameters. In such cases, the derivative of the integral is obtained using the Reynolds transport theorem:
+In 2018, edge sampling, a differentiable rendering method applicable to path tracing, was introduced \cite{EdgeSampling}. The proposed approach accounts for both primary and secondary visibility and, for the first time, enables correct differentiation with respect to arbitrary scene parameters. The study demonstrated that when differentiating rendering integral with respect to parameters defining object shape, the integrand becomes discontinuous, and the locations of these discontinuities depend on the aforementioned parameters. In such cases, the derivative of the integral is obtained using the Reynolds transport theorem:
 
 % формула
+
+\begin{equation}
+    \begin{gathered}
+        \frac{d}{d \theta} \int_{\Omega_\theta}{f(\omega;\theta) d\omega} = \int_{\Omega_{\theta}}{\frac{d}{d \theta} f(\omega;\theta) d\omega} + \int_{\partial \Omega_{\theta}}{(\partial_\theta \omega \cdot \textbf{n}) f(\omega;\theta) d\omega}
+    \end{gathered}
+\end{equation}
 
 % где <TODO: >. Первое слагаемое называется \textit{внутренним интегралом}, второе \textit{граничным интегралом}. Проблема оценки граничного интеграла заключается в том, что, для любого ракурса, площадь области его определения равна 0, из-за чего его нельзя просемплировать методом Монте-Карло. В \cite{EdgeSampling} он семплируется явно: предварительно отбираются грани меша, которые образуют силуэт, после чего они равномерно семплируются. Для полигонального меша это дорогостоящая операция, потому в дальнейшием несколько работ предложило оценку граничного интеграла без явного семплирования границ. Метод репараметризации \cite{Reparam} локально учитывает разрывы, а warped-area sampling method \cite{WAS} делает переход от интеграла по границе к объёмному интегралу, что позволяет переиспользовать семплы внутреннего интеграла.
 The first term is referred to as the \textit{interior integral}, and the second as the \textit{boundary integral}. The difficulty in estimating the boundary integral lies in the fact that, for any viewpoint, the measure of its domain is zero, which makes it impossible to sample using Monte Carlo methods. In \cite{EdgeSampling}, it is sampled explicitly: silhouette edges of the mesh are first identified, after which they are sampled uniformly. For polygonal meshes, this is a computationally expensive operation; therefore, several subsequent works have proposed methods for estimating the boundary integral without explicit boundary sampling. The reparameterization method \cite{Reparam} locally accounts for discontinuities, while the warped-area sampling method \cite{WAS} transforms the boundary integral into a volumetric integral, enabling reuse of samples from the interior integral.
@@ -197,6 +203,12 @@ Finally, in the relaxed boundary method \cite{RelaxBoundary} (2024), the authors
 
 \subsection{Problems and contributions}
 
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.9\textwidth]{Resources/SparseDR.pdf}
+    \caption{Comparison of current differentiable physically-based SDF rendering methods (left) and SparseDR (right). \label{figSparseDR}}
+\end{figure}
+
 % Описанные выше методы развивают дифференцируемый физически-обоснованный рендеринг, придя к простому методу оценки граничного интеграла для функций расстояния со знаком -- более гибкого представления с точки зрения реконструкции поверхности, чем меш. Тем не менее, у него имеется ряд недостатков: во-первых, быстрый рост размера модели: в процессе оптимизации разрешение сетки увеличивается постепенно, и на каждом upsampling step её размер увеличивается в 8 раз, что сильно ограничивает возможности метода. Во-вторых, медленная отрисовка, основанная на sphere tracing. В-третьих, даже при локальных изменениях дистанций около поверхности, существующие методы применяют затратный алгоритм редистансинга. Он применяется на каждом шаге оптимизации для пересчёта значений после обновления дистанций, так как сетка перестаёт задавать функцию расстояния, причём пересчёту подвержены все дистанции of the grid.
 Described methods advance differentiable physics-based rendering by introducing a simple approach for estimating boundary integrals for signed distance functions -- a representation that is more flexible for surface reconstruction than meshes. However, this approach has several drawbacks. First, the model size grows rapidly: during optimization, the grid resolution is progressively increased, and at each upsampling step its size expands eightfold, which significantly limits the method's scalability. Second, rendering remains slow due to its reliance on sphere tracing. Third, even for local modifications of distances near the surface, existing methods employ a computationally expensive redistancing algorithm. This procedure is applied at every optimization step to recompute values after distance updates, since the grid no longer represents a valid distance function; consequently, all grid distances must be recalculated.
 
@@ -219,7 +231,7 @@ The reconstruction is performed over multiple epochs. Each epoch consists of sev
 \subsection{Rendering and Gradient Evaluation}
 
 % Наш метод использует в реконструкции sparse brick sets (SBS) \cite{HanssonSoderlund}. Это гибрид между иерархическим и регулярным представлением: a BVH tree, в листьях которого содержатся small regular SDF grids, благодаря чему можно отбрасывать те листья, в которых отсутствует поверхность объекта. A ray first traverses the BVH; if an intersection with a leaf node is found, it then intersects the voxels of the brick. The ray traverses each brick along its path until it hits the surface or there are no bricks left. Помимо самого представления, в нашем методе используются предложенные для SBS методы поиска пересечения луча: метод Ньютона и аналитический метод. Для корректного расчёта градиентов мы используем метод релаксированной границы \cite{RelaxBoundary}, адаптированный под эти методы. Оба метода пересекают луч с вокселем и основаны на том, что внутри вокселя, SDF along the ray представима в виде кубического полинома, отличаются эти методы только способом нахождения корня. С другой стороны, основной критерий точки релаксированной границы: эта точка является локальным минимумом of SDF along the ray, поэтому адаптация поиска точек релаксированной границы внутри вокселя сводится к нахождению нужного корня квадратного уравнения. Однако, часто в случае трилинейной интерполяции локальный минимум достигается на границе вокселей, и их проверка также реализована.
-Our method employs Sparse Brick Sets (SBS) \cite{HanssonSoderlund} for reconstruction. This representation is a hybrid between hierarchical and regular structures: a BVH tree whose leaf nodes contain small regular SDF grids, allowing efficient culling of leaves that do not contain the object surface. A ray first traverses the BVH; upon intersecting a leaf node, it proceeds to intersect the voxels of the corresponding brick. The ray continues traversing bricks along its path until it either hits the surface or no further bricks remain.
+Our method employs Sparse Brick Set (SBS) \cite{HanssonSoderlund} for reconstruction. This representation is a hybrid between hierarchical and regular structures: a BVH tree whose leaf nodes contain small regular SDF grids, allowing efficient culling of leaves that do not contain the object surface. A ray first traverses the BVH; upon intersecting a leaf node, it proceeds to intersect the voxels of the corresponding brick. The ray continues traversing bricks along its path until it either hits the surface or no further bricks remain.
 
 In addition to the representation itself, our method utilizes ray-surface intersection techniques proposed for SBS, namely the Newton method and an analytical approach. For correct gradient computation, we adopt the relaxed boundary method \cite{RelaxBoundary}, adapted to these intersection techniques. Both methods compute ray-voxel intersections under the assumption that the SDF along the ray within a voxel can be represented as a cubic polynomial; they differ only in the root-finding procedure.
 
@@ -230,16 +242,30 @@ The algorithm is implemented in C++ and Vulkan without the use of automatic diff
 
 \subsection{Redistancing}
 
+% TODO: redo
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=0.9\textwidth]{Resources/Graphic9c1.eps}
+    \caption{Extrapolation step scheme, yellow brick side is extrapolated from neighbours' sides (colored green). a) neighbour lookup; b) side values extrapolation from each neighbour. \label{figNeighborBricks}}
+\end{figure}
+
 % После шага градиентного спуска обновлённые дистанции, строго говоря, больше не задают SDF: они не соответствуют настоящим расстояниям до поверхности, и сетка больше не удовлетворяет eikonal equation. Для восстановления этого свойства в базовом методе, grid values are redistanced с использованием fast sweeping method \cite{RedistFSM}. Адаптация этого шага под разреженные представления нетривиальна: при пересчёте дистанций в одном брике модели нужно дополнительно найти и учитывать соседние брики, не связанные с ним дистанциями (т.е. промежуточные брики удалены, но сам сосед влияет на корректное значение дистанций).
 After a gradient descent step, the updated distances, strictly speaking, no longer represent a signed distance function (SDF): they do not correspond to true distances to the surface, and the grid no longer satisfies the Eikonal equation. To restore this property in the baseline method, the grid values are redistanced using the fast sweeping method \cite{RedistFSM}. Adapting this step to sparse representations is nontrivial: when recomputing distances within a given brick of the model, it is additionally necessary to identify and account for neighboring bricks that are not directly connected to it via stored distances (i.e., intermediate bricks may be absent, yet such neighbors still influence the correct distance values).
 
 % Полноценной адаптацией редистансинга под SBS является глобальный редистансинг. Для корректного расчёта дистанций добавлен шаг экстраполяции: для каждой грани брика, к которой не примыкает другой брик (нет непосредственного соседа), и она не принадлежит границе всей модели, ищутся соседи, и дистанции этой грани экстраполируются из самой ближней грани этих соседей \ref{figNeighborBricks}. Выбираются минимальные по модулю значения дистанций среди текущих и всех рассчитанных. Сам редистансинг распараллелен по брикам, поскольку fast-sweeping method схемы, основанные на самих значениях, are more algorithmically complex for SBS.
-Global redistancing constitutes a full adaptation of the redistancing procedure for SBS. To ensure correct distance computation, an extrapolation step is introduced: for each face of a brick that does not adjoin another brick (i.e., has no immediate neighbor), neighboring bricks are identified, and the distances for that face are extrapolated from the nearest face of these neighbors (see Fig. \ref{figNeighborBricks}). The minimum absolute values are then selected among the current and all computed distances. The redistancing procedure itself is parallelized across bricks, as existing fast-sweeping method schemes are algorithmically more complex for SBS.
+
+Global redistancing is an adaptation of the redistancing procedure for SBS. To ensure correct distance computation, an extrapolation step is introduced: for each face of a brick that does not adjoin another brick (i.e., has no immediate neighbor), neighboring bricks are identified, and the distances for that face are extrapolated from the nearest face of these neighbors (see Fig. \ref{figNeighborBricks}). The minimum absolute values are then selected among the current and all computed distances. The redistancing procedure itself is parallelized across bricks, as existing fast-sweeping method schemes are algorithmically more complex for SBS.
+
+\begin{figure}[b]
+    \centering
+    \includegraphics[width=0.85\textwidth]{Resources/Graphic9a2.pdf}
+    \caption{Comparison of global (left) and local (right) redistancing. Dots represent distance values; bricks are 3x3 values. Red (blue) dots are the values outside (inside) the object. The dashed line represents the surface, set by values colored white. Arrows show the order of updating values. Local redistancing ignores the bricks without the surface (grey). \label{figRedistTypes}}
+\end{figure}
 
 % Одним полезным свойством voxel-based intersection methods является отсутствие той зависимости от корректных дистанций, которая есть у sphere tracing. Благодаря этому можно игнорировать воксель, если все его дистанции больше, чем relaxed epsilon: в этом случае мы не найдём в нём ни пересечение, ни точку релаксированной границы. В связи с этим нас меньше интересует значение дистанций в бриках, которые не хранят поверхность, в частности, к ним необязательно применять редистансинг. Локальный редистансинг является оптимизированной версией шага редистансинга, применяемой после каждой итерации метода. Первая оптимизация заключается в том, что пересчитываются дистанции только в бриках, содержащих поверхность. Вторая оптимизация: предполагается, что дистанции в бриках с поверхностью зависят только от поверхности в этом брике -- не происходит обращения к дистанциям в других бриках, что упрощает логику и увеличивает локальность без ухудшения качества реконструкции.
 One useful property of voxel-based intersection methods is that they do not rely on correct distances as much as sphere tracing does. As a result, a voxel can be safely ignored if all its distance values exceed a relaxed epsilon; in this case, neither an intersection nor a relaxed boundary point can be found within it. Consequently, the exact values of distances in bricks that do not contain the surface are of limited importance, and in particular, redistancing is not required for such bricks.
 
-Local redistancing is an optimized variant of the redistancing step performed after each iteration of the method. The first optimization restricts distance recomputation to bricks that contain the surface. The second optimization assumes that distances within surface-containing bricks depend only on the surface within the same brick, without referencing distances from neighboring bricks. This assumption simplifies the implementation and improves data locality without degrading reconstruction quality. The simplified comparison of redistancing variants is shown in Fig. \ref{figRedistTypes}.
+Local redistancing is an optimized version of the redistancing step performed after each iteration of the method. The first optimization restricts distance recomputation to bricks that contain the surface. The second optimization assumes that distances within surface-containing bricks depend only on the surface within the same brick, without referencing distances from neighboring bricks. This assumption simplifies the implementation and improves data locality without substantial degradation of reconstruction quality. The simplified comparison of redistancing variants is shown in Fig. \ref{figRedistTypes}.
 
 \subsection{Upsampling and Sparsification}
 
@@ -259,17 +285,17 @@ This section consists of two parts: the first presents a comparison with the bas
 
 % ! Попробовать реконструкцию в базовом методе для поздних эпох в разрешении 512*512, мб не упадёт
 
-% Реконструкция велась на 15 ракурсах, равномерно распределённых на сфере с использованием кода из \cite{}, разрешение изображений 1024*1024. В сцене два направленных источника света: (1,1,1) и (-1,-1,-1), а также ambient light. Первые 3 эпохи занимают по 200 итераций, оставшиеся 4 по 100 итераций. Размер батча 5. Hyperparameters, such as learning rate, Adam optimizer parameters, relaxed boundary width (epsilon), взяты из конфигурационного файла в репозитории \cite{}. Восстанавливались модели ... !
+% Реконструкция велась на 24 ракурсах, равномерно распределённых на сфере, разрешение изображений 1024*1024. В сцене два направленных источника света: (1,1,1) и (-1,-1,-1), а также ambient light. Первые 3 эпохи занимают по 200 итераций, оставшиеся 4 по 100 итераций. Размер батча 5. Hyperparameters, such as learning rate, Adam optimizer parameters, relaxed boundary width (epsilon), взяты из конфигурационного файла в репозитории \cite{}. Восстанавливались 4 модели from Stanford 3D scans repository, Nefertiti scan, Utah teapot, а также сканы из Artec3D: !--- TODO.
 
 % Базовый метод в нашей hardware конфигурации способен выполнить только 5 эпох (после чего Dr.JIT возвращает OOM error), в то время как наш метод выполняет 7 эпох за то же время. Это повлияло на презентацию результатов следующим образом: график времени содержит пропуски для базового метода на 6 и 7 эпохах; результаты качества представлены для базового метода (5 эпох), нашего метода (5 эпох), а также нашего метода, работавшего то же время, что и базовый (7 эпох). Размеры моделей в базовом методе (3D grids of floating point values) получены как число узлов сетки, умноженное на 4 байта, поэтому в этом сравнении результаты представлены полностью.
 
 
-% ! График времени: барплот, среднее по всем моделям время выполнения каждой эпохи. Для базового метода 5, для нашего 7 (Для базового метода отсутствуют результаты для эпох 6 и 7).
+% ! Графики времени: 2 барплота, среднее по всем моделям время выполнения каждой эпохи. 1 - сравнение нас и базового метода (5 эпох). 2 - для нашего метода (7 эпох).
 
 % На ... представлено среднее по всем моделям время выполнения одной итерации для каждой эпохи с разбиением на этапы. Из него следует, что, в связи с использованием BVH, появляется зависимость времени рендера от размера SBS. Тем не менее, наш метод заметно быстрее базового на первых пяти эпохах. Отдельно следует отметить редистансинг: локальный редистансинг на CPU оказался быстрее, чем полноценный редистансинг на GPU.
 
 
-% ! График качества: три столбика - базовый, наш (та же эпоха), наш (то же время)
+% ! Графики качества: 1. базовый + наш (та же эпоха); 2. базовый + наш (то же время)
 
 % Figure~\ref{} показывает среднее по ракурсам значение PSNR для рендеров референса и реконструкции. Представлено три результата: работа базового метода (5 эпох), работа нашего метода для того же числа эпох, а также результат работы нашего метода за то же время, которое работал базовый метод (7 эпох). Сравнение первого со вторым приводится для валидации, его цель -- показать сопоставимость результатов работы двух методов. Сравнение первого с третьим демонстрирует преимущество нашего метода в качестве реконструкции.Отрисовка референсов и результирующих рендеров (после окончания оптимизации) в эталонной реализации проводилась с 2048 лучами на пиксель для минимизации влияния шума.
 
@@ -281,20 +307,22 @@ This section consists of two parts: the first presents a comparison with the bas
 
 \subsection{Ablation study}
 
-% В данном подразделе исследуется влияние отдельных элементов алгоритма на скорость и качество реконструкции, а также приводятся более подробные результаты экспериментов из прошлого подраздела, выходящие за рамки сравнения с базовым методом.
+% В данном подразделе исследуется влияние отдельных элементов алгоритма и параметров на скорость и качество реконструкции, а также приводятся дополнительные результаты экспериментов из прошлого подраздела, выходящие за рамки сравнения с базовым методом.
 
 
-% 1. Реконструкция с sphere tracing vs. Newton/Analytic -- второй быстрее
-% 2. Реконструкция с обеими версиями редистансинга -- ещё быстрее, и качество не проседает
+% 1. Скорость реконструкции (только этап рендеринга) с sphere tracing vs. Newton/Analytic -- насколько второй быстрее (скорость, барплот по эпохам, два столбца)
 
-% Поэтапно сравним скорость и качество работы метода, начав с идентичной базовому методу конфигурации sphere tracing + редистансинг (64 spp/4 boundary spp), сначала сменив метод поиска пересечения на Newton/Analytical, а затем перейдя на локальный редистансинг.
+% 2. Реконструкция с обеими версиями редистансинга -- скорость (без графика, только во сколько раз быстрее на CPU), качество (качество, барплот по моделям, два столбца)
+
+% Качество реконструкции (качество, барплот по моделям, два столбца - исходные ракурсы + новые)
 
 
-% 3. Демонстрация качества (бар плот) для каждой эпохи -- PSNR растёт линейно
 
-% 4. Исследование пиковой нагрузки на память: RAM, VRAM
+% 3. Демонстрация качества (барплот по эпохам) для каждой эпохи -- PSNR растёт линейно
 
-% ?. Эксперименты с релакс-эпсилон, регуляризацией
+% 4. Использование маски (параметр чувствительности) -- помогает с отверстиями, приводит к ухудшению качества при злоупотреблении -> Buddha (примеры реконструкции с/без).
+
+% 5. Использование sparsification в течение эпохи -- помогает с мелкими деталями -> Helicopter (примеры реконструкции с/без).
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
