@@ -1,9 +1,14 @@
 # Root dir
+sparsedr_ext_paper_old.*
+
 sparsedr_ext_paper.*
 !sparsedr_ext_paper.tex
 
 template.*
 !template.tex
+
+access.*
+!access.tex
 
 Instructions for Authors_AI_MDPI.html
 
