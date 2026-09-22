@@ -60,7 +60,7 @@ computer vision, differentiable rendering, signed distance function, 3D reconstr
 
 3D reconstruction is one of the fundamental problems in computer vision. It is closely related to inverse rendering. While (forward) rendering consists of generating 2D images from a 3D scene, inverse rendering aims to recover the objects of a scene from a set of images assumed to be rendered under a specific process. Over the past decade, significant progress in solving this problem has been driven by the rapidly developing field of differentiable rendering. Differentiable rendering assumes that all stages of the rendering pipeline are differentiable, enabling the use of gradient-based optimization for scene reconstruction. As a result, gradients from a loss function defined between a reconstructed image and a corresponding reference image can be propagated to the optimized parameters -- such as materials and geometry -- which are expected to converge to those of the reference scene.
 
-A large number of methods have been proposed that provide differentiable rendering algorithms for various types of scene representations. These methods can be broadly divided into two categories: neural and non-neural approaches. The former includes NeRF \cite{NeRF} and other neural rendering techniques that reconstruct, for example, point clouds or signed distance functions (SDFs) \cite{NeUS2, NeuAngelo}. The latter category includes methods such as Gaussian splatting \cite{3DGS, 2DGS} and mesh splatting \cite{MeshS}.
+A large number of methods have been proposed that provide differentiable rendering algorithms for various types of scene representations. These methods can be broadly divided into two categories: neural and non-neural approaches. The former includes NeRF \cite{NeRF} and other neural rendering techniques that reconstruct such representations as point clouds or signed distance functions (SDFs) \cite{NeUS2, NeuAngelo}. The latter category includes methods such as Gaussian splatting \cite{3DGS, 2DGS} and mesh splatting \cite{MeshS}.
 
 However, when both geometry and material properties are required -- for instance, in physically based rendering -- most of these methods necessitate additional post-processing. First, their outputs must be converted into representations compatible with path tracing pipelines, such as SDFs or meshes. Although such conversion approaches exist (e.g., \cite{BakedSDF, NeRFMeshing} for NeRF and \cite{SuGaR} for 3DGS), quality degradation during conversion is unavoidable. Mesh splatting methods address this issue by reconstructing meshes directly; however, they introduce another limitation: while they enable texture reconstruction, they do not recover material properties. At the same time, there exists a class of methods specifically designed to obtain accurate gradients for ray tracing in physically based rendering.
 
@@ -94,8 +94,7 @@ Finally, in the relaxed boundary method \cite{RelaxBoundary}, the authors furthe
 \subsection{Problems and contributions}
 
 \Figure[h](topskip=0pt, botskip=0pt, midskip=0pt)[width=0.95\textwidth]{Resources/SparseDR.pdf} {
-    \textbf{The setup of existing differentiable physically-based SDF rendering methods (left) vs. SparseDR (right).}
-    \label{figSparseDR}
+    The setup of existing differentiable physically-based SDF rendering methods (left) vs. SparseDR (right). \label{figSparseDR}
 }
 
 Described methods advance differentiable physics-based rendering by introducing a simple approach for estimating boundary integrals for signed distance functions -- a representation that is more flexible for surface reconstruction than meshes. However, this approach has several drawbacks. First, the model size grows rapidly: during optimization, the grid resolution is progressively increased, and at each upsampling step its size expands eightfold, which significantly limits the method's scalability. Second, rendering remains slow due to its reliance on sphere tracing. Third, even for local modifications of distances near the surface, existing methods employ a computationally expensive redistancing algorithm. This procedure is applied at every optimization step to recompute values after distance updates, since the grid no longer represents a valid distance function; consequently, all grid distances must be recalculated.
@@ -124,8 +123,7 @@ The algorithm is implemented in C++ and Vulkan without the use of automatic diff
 \subsection{Redistancing}
 
 \Figure[t](topskip=0pt, botskip=0pt, midskip=0pt)[width=0.9\linewidth]{Resources/Graphic9c1.eps} {
-    \textbf{Extrapolation step scheme, yellow brick side is extrapolated from neighbours' sides (colored green). a) neighbour lookup; b) side values extrapolation from each neighbour.}
-    \label{figNeighborBricks}
+    Extrapolation step scheme, yellow brick side is extrapolated from neighbours' sides (colored green). a) neighbour lookup; b) side values extrapolation from each neighbour. \label{figNeighborBricks}
 }
 
 After a gradient descent step, the updated distances, strictly speaking, no longer represent a signed distance function (SDF): they do not correspond to true distances to the surface, and the grid no longer satisfies the Eikonal equation. To restore this property in the baseline method, the grid values are redistanced using the fast sweeping method \cite{RedistFSM}. Adapting this step to sparse representations is nontrivial: when recomputing distances within a given brick of the model, it is additionally necessary to identify and account for neighboring bricks that are not directly connected to it via stored distances (i.e., intermediate bricks may be absent, yet such neighbors still influence the correct distance values).
@@ -134,8 +132,7 @@ After a gradient descent step, the updated distances, strictly speaking, no long
 Global redistancing is an adaptation of the redistancing procedure for SBS. To ensure correct distance computation, an extrapolation step is introduced: for each face of a brick that does not adjoin another brick (i.e., has no immediate neighbor), neighboring bricks are identified, and the distances for that face are extrapolated from the nearest face of these neighbors (see Fig. \ref{figNeighborBricks}). The minimum absolute values are then selected among the current and all computed distances. The redistancing procedure itself is parallelized across bricks, as existing fast-sweeping method schemes are algorithmically more complex for SBS.
 
 \Figure[h](topskip=0pt, botskip=0pt, midskip=0pt)[width=0.9\linewidth]{Resources/Graphic9a2.pdf} {
-    \textbf{Comparison of global (top) and local (bottom) redistancing. Dots represent distance values; bricks are 3x3 values. Red (blue) dots are the values outside (inside) the object. The dashed line represents the surface, set by values colored white. Arrows show the order of updating values. Local redistancing ignores the bricks without the surface (grey).}
-    \label{figRedistTypes}
+    Comparison of global (top) and local (bottom) redistancing. Dots represent distance values; bricks are 3x3 values. Red (blue) dots are the values outside (inside) the object. The dashed line represents the surface, set by values colored white. Arrows show the order of updating values. Local redistancing ignores the bricks without the surface (grey). \label{figRedistTypes}
 }
 
 One useful property of voxel-based intersection methods is that they do not rely on correct distances as much as sphere tracing does. As a result, a voxel can be safely ignored if all its distance values exceed a relaxed epsilon; in this case, neither an intersection nor a relaxed boundary point can be found within it. Consequently, the exact values of distances in bricks that do not contain the surface are of limited importance, and in particular, redistancing is not required for such bricks.
@@ -152,24 +149,35 @@ This section consists of two parts: the first presents a comparison with the bas
 
 \subsection{Comparison to baseline}
 
-% Сравнения представляют собой реконструкцию моделей в максимально равных условиях с последующим сопоставлением времени и точности реконструкции, а также размеров полученных представлений для каждой эпохи. Реализация метода relaxed boundary взята из официального репозитория \cite{}.
+% Сравнения представляют собой реконструкцию моделей в максимально равных условиях с последующим сопоставлением времени, точности реконструкции, а также размеров полученных представлений для каждой эпохи. Реализация метода релаксированной границы взята из официального репозитория \cite{DRSDF24Repo}.
 
-% Реконструкция велась на 24 ракурсах, равномерно распределённых на полусфере, разрешение изображений 1024*1024. В сцене два направленных источника света: (1,1,1) и (-1,-1,-1), а также ambient light. Размер батча 6. Hyperparameters, such as learning rate, Adam optimizer parameters, relaxed boundary width, взяты из конфигурационного файла в репозитории базового метода \cite{}. Восстанавливались 4 модели from Stanford 3D scans repository, Nefertiti scan, Utah teapot, а также сканы Artec3D: Buggy, Demogorgon, Doom, Helicopter, Pufferfish, Wheel.
+% Реконструкция велась на 24 ракурсах, равномерно распределённых на полусфере, разрешение изображений 1024*1024. В сцене два направленных источника света: (1,1,1) и (-1,-1,-1), а также ambient light. Размер батча 6. Hyperparameters, such as learning rate, Adam optimizer parameters, relaxed boundary width, взяты из конфигурационного файла в репозитории базового метода. Восстанавливались 12 моделей: 4 модели from Stanford 3D scans repository, Nefertiti scan, Utah teapot, а также сканы Artec3D: Buggy, Demogorgon, Doom, Helicopter, Pufferfish, Wheel.
+
+Comparisons consist of reconstructing models under maximally equal conditions, followed by comparing reconstruction time, accuracy, and the sizes of the resulting representations for each epoch. The implementation of the relaxed boundary method is taken from the official repository \cite{DRSDF24Repo}.
+
+Reconstruction was performed from 24 views uniformly distributed over a hemisphere, with image resolution 1024x1024. The scene contains two directional light sources at (1,1,1) and (-1,-1,-1), as well as ambient light. The batch size is 6. Hyperparameters, such as learning rate, Adam optimizer parameters, and relaxed boundary width, are taken from the configuration file in the base method's repository. Twelve models were reconstructed: four models from the Stanford 3D Scans Repository, the Nefertiti scan, the Utah teapot, and Artec3D scans: Buggy, Demogorgon, Doom, Helicopter, Pufferfish, and Wheel.
 
 
-\Figure[t](topskip=0pt, botskip=0pt, midskip=0pt)[width=0.9\textwidth]{Resources/ieee_acc_psnr_57.pdf}{\textbf{Average PSNR of reconstructed models for: (top) the same number of epochs (5 epochs); (bottom) the same total reconstruction time (5 epochs for baseline, 7 epochs for SparseDR).}\label{figPSNR57}}
+\Figure[t](topskip=0pt, botskip=0pt, midskip=0pt)[width=0.9\textwidth]{Resources/ieee_acc_psnr_all.pdf} {
+    Average PSNR of reconstructed models for the baseline, our method with the same number of epochs (5 epochs), and our method for the same total reconstruction time (7 epochs).\label{figPSNR57}
+}
 
-\Figure[h](topskip=0pt, botskip=0pt, midskip=0pt)[width=0.95\linewidth]{Resources/ieee_acc_time_5.pdf} {
-    \textbf{Average epoch time for the epochs 1-5.}
+\Figure[h](topskip=0pt, botskip=0pt, midskip=0pt)[width=0.9\linewidth]{Resources/ieee_acc_time_5.pdf} {
+    Average iteration time for the epochs 1-5.
     \label{figTime5}
 }
 
 % ! Таблица: строки - модели; столбцы: , PSNR, время в минутах
 
-% Базовый метод в нашей hardware конфигурации способен выполнить только 5 эпох (после чего Dr.JIT возвращает OOM error), в то время как наш метод выполняет 7 эпох за то же время. Поэтому в сравнении с базовым методом мы демонстрируем время (Fig. \ref{figTime5}) и качество (Fig. \ref{figPSNR5}) на первых пяти эпохах для обоих, а также качество после 7 эпох вместе с общим временем реконструкции в Таблице \ref{tabAll7}.
+% Базовый метод в нашей hardware конфигурации способен выполнить только 5 эпох (после чего Dr.JIT возвращает OOM error), в то время как наш метод выполняет 7 эпох за то же время. Поэтому в сравнении с базовым методом мы демонстрируем время для первых пяти эпох, а качество как для одинакового числа эпох, так и для одинакового времени выполнения.
 
-% На Figure \ref{figTime5} представлено среднее по всем моделям время выполнения одной итерации для первых пяти эпох. По нему видно, что у SBS появляется зависимость времени рендера от размера модели; nем не менее, наш метод заметно быстрее базового на первых пяти эпохах. Отдельно следует отметить редистансинг: локальная версия на CPU оказалась быстрее, чем dense grid redistancing on GPU.
-% Figure \ref{figPSNR5} показывает среднее по ракурсам значение PSNR для рендеров референса и реконструкции. Представлено три результата: работа базового метода (5 эпох), работа нашего метода также для 5 эпох, а также за то же время, которое работал базовый метод (7 эпох).
+% На Figure \ref{figTime5} представлено среднее по всем моделям время выполнения одной итерации для первых пяти эпох. По нему видно, что у SBS появляется зависимость времени рендера от размера модели; тем не менее, наш метод превосходит базовый на первых пяти эпохах. Отдельно следует отметить редистансинг: локальная версия на CPU оказалась быстрее, чем dense grid redistancing on GPU.
+Under our hardware configuration, the baseline method is able to perform only 5 epochs (after which Dr.JIT returns an OOM error), whereas our method completes 7 epochs in the same time. Therefore, in comparison with the baseline, we report runtime for the first five epochs, and quality both for an equal number of epochs and for equal wall-clock time.
+
+Figure \ref{figTime5} shows the average per-iteration runtime over all models for the first five epochs. It can be seen that SBS's rendering time is dependant on model size; nevertheless, our method outperforms the baseline on the first five epochs, demonstrating the 3-10 times increased iteration speed. It is also worth noting redistancing: the local version on the CPU works faster than dense grid redistancing on the GPU.
+
+% Figure \ref{figPSNR57} показывает среднее по ракурсам значение PSNR для рендеров референса и реконструкции. Представлено три результата: работа базового метода (5 эпох), работа нашего метода также для 5 эпох, а также за то же время, которое работал базовый метод (7 эпох). Первые 6 моделей обладают достаточно гладкими поверхностями, поэтому наш метод показывает гораздо лучшую точность реконструкции за счёт более высокой детализации используемого представления. Последние 6 моделей отличаются рельефностью и обилием мелких деталей, поэтому на них разрыв в точности реконструкции между нашей методом и базовым, имеющим в своей реализации трассировку путей, уменьшается. Тем не менее, после расширения нашего метода мы ожидаем прирост качества реконструкции. Использование этих моделей в будущих сравнениях позволит нагляднее продемонстрировать прогресс и эффективность метода.
+Figure \ref{figPSNR57} shows the average PSNR over views for renders of the reference and the reconstruction. Three results are presented: the baseline method (5 epochs), our method also for 5 epochs, and our method for the same wall-clock time as the baseline (7 epochs). The first six models have relatively smooth surfaces, so our method achieves substantially higher reconstruction accuracy due to the finer detail of the representation used. The last six models are characterized by pronounced relief and an abundance of small details, which reduces the gap in reconstruction accuracy between our method and the baseline, which employs path tracing in its implementation. Nevertheless, after extending our method, we expect an improvement in reconstruction quality. Using these models in future comparisons will make the progress and effectiveness of the method more apparent.
 
 
 \begin{table}
@@ -205,90 +213,105 @@ This section consists of two parts: the first presents a comparison with the bas
         Ours (Wheel)          & \textbf{7.2} & \textbf{29.6} & \textbf{142.6} & \textbf{ 734.0} & \textbf{3709.6}  \\
         \bottomrule
     \end{tabular}
-    \caption{\textbf{The model sizes for the Relaxed Boundary and SparseDR methods, epochs 3-7. All values are in MBs. Asterisks denote theoretical values, as we could not acquire them on our hardware (OOM in Dr. JIT). % Для базового метода указан размер грида, для нашего -- сумма размеров SBS и его BVH.
-    }}
+    \caption{The model sizes for the Relaxed Boundary and SparseDR methods, epochs 3-7. All values are in MBs. Asterisks denote theoretical values, as we could not acquire them on our hardware (OOM in Dr. JIT). For the baseline method, the grid size is reported, whereas for our method we report the combined size of the SBS and its BVH.
+    }
     \label{tab:comp_size}
 \end{table}
 
-% В таблице Table~\ref{tab:comp_size} приведены размеры моделей, полученных для каждой модели на каждой эпохе. The sizes of SDF grids are the same for all models on each epoch. В результате апсемплинга размер of the dense grid увеличивается в 8 раз. Благодаря использованию разреженной структуры данных, размер моделей, полученных нашим методом, меньше размера грида начиная с третьей эпохи. Кроме того, размер модели после апсемплинга приблизительно в 4 раза больше исходной, так как модель хранит только дистанции у поверхности. Таким образом, рост размера моделей в нашем методе на порядок меньше, чем в базовом.
+% В Таблице \ref{tab:comp_size} приведены размеры моделей, полученных для каждой модели на эпохах 3-7. Размер SDF сетки на каждой эпохе одинаков для всех моделей, поэтому они указаны один раз в верхней строке. В базовом методе в результате апсемплинга размер плотной сетки увеличивается в 8 раз от эпохи к эпохе. Благодаря использованию разреженной структуры данных, размер всех моделей, полученных нашим методом, меньше размера грида, начиная с четвёртой эпохи. Кроме того, размер модели после апсемплинга приблизительно в 4 раза больше исходной, так как модель хранит только дистанции у поверхности. Таким образом, рост размера моделей в нашем методе на порядок меньше, чем в базовом.
+Table \ref{tab:comp_size} reports the sizes of the models obtained for each input model at epochs 3-7. The SDF grid size is the same for all models at each epoch, so it is listed once in the top row. In the baseline method, as a result of upsampling, the dense grid size increases by a factor of 8 from epoch to epoch. Thanks to the use of a sparse data structure, the size of all models produced by our method is smaller than the grid size starting from the fourth epoch. Moreover, the model size after upsampling is approximately 4 times the original size, since the model stores distances only near the surface. Thus, the growth in model size in our method is an order of magnitude smaller than in the baseline.
 
 \subsection{Ablation study}
+
+\Figure[t](topskip=0pt, botskip=0pt, midskip=0pt)[width=0.9\textwidth]{Resources/ieee_acc_psnr_box_nvs.pdf} {
+    PSNR on traning and novel views. \label{figNVS}
+}
+
+\Figure[t](topskip=0pt, botskip=0pt, midskip=0pt)[width=0.9\linewidth]{Resources/ieee_acc_time_st_nt.pdf}{
+    Average rendering time per epoch for Sphere Tracing and Newton intersection methods.\label{figSTNt}
+}
 
 % В данном подразделе исследуется влияние отдельных элементов алгоритма и параметров на скорость и качество реконструкции, а также приводятся дополнительные результаты экспериментов из прошлого подраздела, выходящие за рамки сравнения с базовым методом.
 
 % 1. Качество реконструкции (NVS) - (качество, барплот по моделям, два столбца - исходные ракурсы + новые)
 
-\Figure[h](topskip=0pt, botskip=0pt, midskip=0pt)[width=0.95\textwidth]{Resources/ieee_acc_psnr_box_nvs.pdf} {
-    \textbf{PSNR on traning and novel views.}
-    \label{figNVS}
-}
+% На Рис. \ref{figNVS} приведены значения PSNR, рассчитанные для моделей датасета при рендеринге на обучающих и новых ракурсах. Новые ракурсы генерировались путём равномерной выборки положений камеры на полусфере вокруг объекта, при этом они не совпадали с ракурсами, использованными на этапе обучения. Это позволяет оценить не только точность воспроизведения известных наблюдений, но и способность метода обобщаться на ранее не встречавшиеся положения камеры, что является ключевым аспектом задачи синтеза новых ракурсов (novel view synthesis). Для всех рассмотренных моделей значения PSNR на новых ракурсах несколько ниже, чем на обучающих, что соответствует ожидаемому снижению качества при переходе от известных положений камеры к новым. При этом разница остаётся относительно небольшой, её среднее значение не превышает 3 дБ. Это указывает на отсутствие существенной деградации качества при синтезе новых ракурсов и свидетельствует о способности метода сохранять согласованное представление сцены за пределами обучающей выборки ракурсов.
+Figure \ref{figNVS} shows PSNR values computed for the dataset models when rendering from training and novel views. The novel views were generated by uniformly sampling camera positions on a hemisphere around the object, ensuring that they do not coincide with the views used during training. For all considered models, PSNR values on novel views are somewhat lower than on training views, consistent with the expected drop in quality when moving from known to new camera positions. Nevertheless, the difference remains relatively small, with an average not exceeding 3 dB. This indicates no substantial degradation in quality during novel view synthesis and suggests that the method maintains a consistent scene representation beyond the training set of views.
 
 % 2. Скорость реконструкции (только этап рендеринга) с sphere tracing vs. Newton/Analytic -- насколько второй быстрее (скорость, барплот по эпохам, два столбца)
 
-% \begin{figure}[H]
-%     \centering
-%     \includegraphics[width=0.9\textwidth]{Resources/mdpi_time_st_nt.pdf}
-%     \caption{Average rendering time per epoch for Sphere Tracing and Newton intersection methods.}
-%     \label{figSTNt}
-% \end{figure}
+% На рис. \ref{figSTNt} приведено сравнение времени выполнения семи эпох при использовании двух методов поиска пересечений луча с SBS: трассировки сферами и метода Ньютона. Время работы метода трассировки сферами зависит не только от количества итераций, но и от сложности геометрии модели, поскольку поиск пересечения так же требует обхода BVH. С увеличением размера модели возрастает число узлов, которые необходимо обойти, что приводит к росту затрат на вычисления.
+
+% Метод Ньютона демонстрирует меньшее время выполнения по сравнению с трассировкой сферами на первых семи эпохах. Это связано с тем, что при данных размерах SBS число вокселей, пересекаемых лучами, ещё относительно невелико, поэтому поиск пересечения с небольшим числом итераций выполняется быстрее, чем sphere tracing. При дальнейшем увеличении числа вокселей возрастает количество участков SBS, с которыми требуется вычислить пересечение луча, что увеличивает суммарные затраты на выполнение итераций; из-за этого на дальнейших эпохах преимущество метода Ньютона может сократиться.
+Figure \ref{figSTNt} compares the runtime over seven epochs for two ray-SBS intersection methods: sphere tracing and the Newton method. The runtime of sphere tracing depends not only on the number of iterations but also on the geometric complexity of the model, since finding an intersection also requires traversing the BVH. As the model size increases, the number of nodes that must be traversed grows, leading to higher computational cost.
+
+Newton's method exhibits shorter runtime than sphere tracing over the first seven epochs. This is because, at these SBS sizes, the number of voxels intersected by rays is still relatively small, so finding an intersection with a small number of iterations is faster than sphere tracing. As the number of voxels further increases, the number of SBS regions for which ray intersections must be computed also grows, raising the total cost per iteration; as a result, the advantage of the Newton method may diminish in later epochs.
+
+\Figure[b](topskip=0pt, botskip=0pt, midskip=0pt)[width=0.9\linewidth]{Resources/collage_mask_smol.png} {
+    The use of mask during reconstruction. Left column -- without a mask. Center column -- using a mask. Right column -- references. \label{figAblMask}
+}
 
 % 3. Реконструкция с обеими версиями редистансинга -- скорость (без графика, только то, что в 30 раз быстрее на CPU), качество (качество, барплот по моделям, два столбца)
 
-\Figure[h](topskip=0pt, botskip=0pt, midskip=0pt)[width=0.95\textwidth]{Resources/ieee_acc_psnr_stem_redist.pdf} {
-    \textbf{Average PSNR for reconstructions using global vs. local redistancing on each iteration (global redistancing is still applied between epochs).}
-    \label{figPSNRRedist}
+% Ещё один вопрос, требующий рассмотрения -- разница в точности реконструкции при использовании локального редистансинга вместо глобального. На Рис. \ref{figPSNRRedist} приведены сравнения PSNR для реконструкции обоими способами, из которых следует, что различия в точности реконструкции несущественны. Учитывая, что на CPU скорость работы локального редистансинга в среднем в 25-30 раз быстрее, чем глобального, он предпочтителен в использовании в течение эпохи.
+Another issue that requires consideration is the difference in reconstruction accuracy when using local redistancing instead of the global version. Figure \ref{figPSNRRedist} shows PSNR comparisons for reconstructions obtained by both methods, from which it follows that the differences in reconstruction accuracy are negligible. Given that, on the CPU, local redistancing is on average 25-30 times faster than global redistancing, it is preferable to use this version during an epoch.
+
+
+\Figure[h](topskip=0pt, botskip=0pt, midskip=0pt)[width=0.9\textwidth]{Resources/collage_mega.png} {
+    Reconstruction examples on all models from the dataset, split into two parts. For each part, top row -- reference, middle -- reconstruction, bottom -- difference between renders, with contrast increased for better visibility.\label{figExamples}
+}
+\Figure[h!](topskip=0pt, botskip=0pt, midskip=0pt)[width=0.9\textwidth]{Resources/ieee_acc_psnr_stem_redist.pdf} {
+    Average PSNR for reconstructions using global vs. local redistancing on each iteration (global redistancing is still applied between epochs). \label{figPSNRRedist}
 }
 
 % 4. Использование маски (параметр чувствительности) -- помогает с отверстиями, приводит к ухудшению качества при злоупотреблении -> Buddha (примеры реконструкции с/без).
 
+% В процессе реконструкции можно пользоваться дополнительными инструментами, которые помогут улучшить точность реконструкции моделей. Во-первых, можно использовать маску объекта для референсных изображений. Чувствительность к маске задаётся для каждой эпохи, по умолчанию она равна 0. Повышение её значения может дополнительно помочь с получением отверстий в сложной модели, если непосредственно дифференцируемому рендерингу не удаётся с ними справиться. На Рис. \ref{figAblMask} показаны примеры реконструкции модели Happy Buddha без маски и с ней, а также референсное изображение для наглядности.
+During reconstruction, additional tools can be employed to improve the accuracy of model reconstruction. First, object masks can be used for the reference images. Mask sensitivity is specified for each epoch and is set to 0 by default. Increasing its value can further help recover holes in complex models when differentiable rendering alone fails to handle them. Figure \ref{figAblMask} shows examples of reconstructing the Happy Buddha model without and with a mask, along with a reference image for clarity.
+
+\Figure[t](topskip=0pt, botskip=0pt, midskip=0pt)[width=0.9\linewidth]{Resources/collage_sparsify_smol.png} {
+    The use of sparsification during an epoch. Left column -- only basic sparsification between epochs. Center column -- sparsified during an epoch. Right column -- reference. \label{figAblSparsify}
+}
+
 % 5. Использование sparsification в течение эпохи -- помогает с мелкими деталями -> Helicopter (примеры реконструкции с/без).
+
+% Во-вторых, в течение эпохи можно с определённым промежутком проводить этап разреживания модели, который по умолчанию применяется только между эпохами. В течение этого шага удаляются и добавляются брики в зависимости от их близости к поверхности, что позволяет "наращивать" представляемую область там, где происходит существенное добавление поверхности. На Рис. \ref{figAblSparsify} показаны примеры реконструкции без дополнительного разреживания и с ним, а также референсное изображение для наглядности. В первом случае винт вертолёта не смог восстановиться, так как он тонкий, поэтому на ранних эпохах его грубая версия не восстановилась, и брики, которые должны представлять его область пространства, были удалены. С дополнительным разреживанием на поздней эпохе эти брики, а следом и сам винт, были восстановлены.
+Second, during an epoch, a sparsification step can be performed at regular intervals; by default, this step is applied only between epochs. During this step, bricks are removed and added depending on their proximity to the surface, allowing the represented region to grow where significant surface is added. Figure \ref{figAblSparsify} shows examples of reconstruction without and with additional sparsification, along with a reference image for clarity. In the first case, the helicopter's propeller failed to reconstruct because it is thin; as a result, its coarse version did not recover in the early epochs, and the bricks that should represent its region of space were removed. With additional sparsification, these bricks, and subsequently the propeller itself, were recovered at a later epoch.
+
+
+% 6. Дополнительно: примеры реконструкции, разница в рендерах (синий-красный), среднее время работы на всех моделях.
+
+% На Рис. \ref{figExample1} показаны примеры реконструкции на моделях первой половины датасета. Они имеют относительно простую структуру, и изначально использовались для проверки работоспособности метода.
+
+% \begin{figure}[h]
+%     \centering
+%     \includegraphics[width=0.9\textwidth]{Resources/collage1.png}
+%     \caption{Примеры реконструкции на моделях первой части датасета. Слева -- референс, в центре -- реконструкция, справа -- разница между рендерами, контраст увеличен для лучшей видимости.\label{figExample1}}
+% \end{figure}
+
+% На Рис. \ref{figExample2} показаны примеры реконструкции на моделях второй половины датасета. Эти модели отличаются высокой рельефностью поверхностей и наличием большого числа мелких деталей, поэтому отсутствие вторичных лучей сказывается на точности их реконструкции.
+
+% \begin{figure}[h]
+%     \centering
+%     \includegraphics[width=0.9\textwidth]{Resources/collage2.png}
+%     \caption{Примеры реконструкции на моделях второй части датасета. Слева -- референс, в центре -- реконструкция, справа -- разница между рендерами, контраст увеличен для лучшей видимости.\label{figExample2}}
+% \end{figure}
+
+Figure \ref{figExamples} shows reconstruction examples on models from the dataset. Models from the first half (top) have a relatively simple structure and were initially used to verify the correctness of the method. Models from the second half are characterized by highly relief surfaces and a large number of small details, so the absence of secondary rays affects the accuracy of their reconstruction.
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Conclusion}
 
-In this work, we propose a method for differentiable rendering of sparse SDFs. The conducted experiments demonstrate its potential for geometry reconstruction tasks. It should be noted that the current implementation does not include secondary rays; however, the method's architecture does not preclude its extension to full path tracing. Incorporating this feature would require additional development and optimization effort, but the obtained results are promising and provide strong motivation for further research and refinement of the method.
+In this work, we propose a method for differentiable rendering of sparse SDFs. The conducted experiments demonstrate its potential for geometry reconstruction tasks. It should be noted that the current implementation does not include secondary rays and material reconstruction; however, the method's architecture does not preclude its extension to full path tracing. Incorporating this feature would require additional development and optimization effort, but the obtained results are promising and provide strong motivation for further research and refinement of the method.
 
-We also highlight the limitations of using MSE as a loss function. Figure \ref{LimPSNR} illustrates a reconstruction result that appears inadequate despite achieving a high PSNR score. This discrepancy stems from a well-known drawback of MSE, namely its inability to capture structural characteristics of images. In this regard, the use of DSSIM as an alternative loss function to replace MSE is considered.
+% We also highlight the limitations of using MSE as a loss function. Figure \ref{LimPSNR} illustrates a reconstruction result that appears inadequate despite achieving a high PSNR score. This discrepancy stems from a well-known drawback of MSE, namely its inability to capture structural characteristics of images. In this regard, the use of DSSIM as an alternative loss function to replace MSE is considered.
 
 
-\vspace{6pt} 
-
-\section*{Acknowledgment}
-The preferred spelling of the word ``acknowledgment'' in American English is
-without an ``e'' after the ``g.'' Use the singular heading even if you have
-many acknowledgments. Avoid expressions such as ``One of us (S.B.A.) would
-like to thank $\ldots$ .'' Instead, write ``F. A. Author thanks $\ldots$ .'' In most
-cases, sponsor and financial support acknowledgments are placed in the
-unnumbered footnote on the first page, not here.
+\vspace{6pt}
 
 
 \begin{thebibliography}{00}
-% % Reference 1
-% \bibitem{ref-journal}
-% Azikiwe, H., \& Bello, A. (2020a). Title of the cited article. \textit{Journal Title}, \textit{Volume}(Issue), 
-% Firstpage--Lastpage/Article Number.
-% % Reference 2
-% \bibitem{ref-book1}
-% Azikiwe, H., \& Bello, A. (2020b). \textit{Book title}. Publisher Name.
-% % Reference 3
-% \bibitem{ref-book2}
-% Davison, T. E. (2019). Title of the book chapter. In A. A. Editor (Ed.), \textit{Title of the book: Subtitle} 
-% (pp. Firstpage--Lastpage). Publisher Name. (Original work published 1623) (Optional).
-% % Reference 4
-% \bibitem{ref-proceeding}
-% Fistek, A., Jester, E., \& Sonnenberg, K. (2017, Month Day). Title of contribution [Type of contribution]. Conference Name, Conference City, Conference Country.
-% % Reference 5
-% \bibitem{ref-thesis}
-% Hutcheson, V. H. (2012). \textit{Title of the thesis} [XX Thesis, Name of Institution Awarding the Degree].
-% % Reference 6
-% \bibitem{ref-unpublish}
-% Lippincott, T., \& Poindexter, E. K. (2019). \textit{Title of the unpublished manuscript} [Unpublished manuscript/Manuscript in prepara-tion/Manuscript submitted for publication]. Department Name, Institution Name.
-% % Reference 7
-% \bibitem{ref-url}
-% Harwood, J. (2008). \textit{Title of the cited article}. Available online: URL (accessed on Day Month Year).
-
-%%%%    MyRefs    %%%%
 \bibitem{NeRF}
 Ben Mildenhall, Pratul P. Srinivasan, Matthew Tancik, Jonathan T. Barron, Ravi Ramamoorthi, and Ren Ng. (2021). NeRF: representing scenes as neural radiance fields for view synthesis. \textit{Commun. ACM}, 65, 1 (January 2022), 99-106. doi: 10.1145/3503250.
 
