@@ -29,10 +29,13 @@
 \doi{10.1109/ACCESS.XXXX.XXXXXXX}
 
 \title{Differentiable Rendering of Sparse Signed Distance Functions}
-\author{\uppercase{Alexey Budak}\authorrefmark{1}, \uppercase{Albert Garifullin}\authorrefmark{1}, AND \uppercase{Vladimir Frolov}\authorrefmark{2}}
+\author{\uppercase{Alexey Budak}\authorrefmark{1}, 
+\uppercase{Albert Garifullin}\authorrefmark{1}, 
+\uppercase{Vladimir Frolov}\authorrefmark{2}, AND
+\uppercase{Alexey Voloboy}\authorrefmark{1}}
 
-\address[1]{Lomonosov Moscow State University, Moscow, Russia (e-mail: alexey.budak@graphics.cs.msu.ru)}
-\address[2]{Institute for Artificial Intelligence, Lomonosov Moscow State University, Moscow, Russia}
+\address[1]{Lomonosov Moscow State University, 119991 Moscow, Russia}
+\address[2]{Institute for Artificial Intelligence of Lomonosov Moscow State University (IAI MSU), 119192 Moscow, Russia}
 
 % Add grants, funding, and acknowledgments here if applicable.
 % \tfootnote{This work was supported by ...}
@@ -307,6 +310,8 @@ In this work, we propose a method for differentiable rendering of sparse SDFs. T
 
 % We also highlight the limitations of using MSE as a loss function. Figure \ref{LimPSNR} illustrates a reconstruction result that appears inadequate despite achieving a high PSNR score. This discrepancy stems from a well-known drawback of MSE, namely its inability to capture structural characteristics of images. In this regard, the use of DSSIM as an alternative loss function to replace MSE is considered.
 
+\section{Acknowledgments}
+This work was supported by The Ministry of Economic Development of the Russian Federation in accordance with the subsidy agreement (agreement identifier 000000C313925P4H0002; grant No 139-15-2025-012).
 
 \vspace{6pt}
 
@@ -368,6 +373,29 @@ Miles Detrixhe, Frédéric Gibou, Chohong Min. (2013). A parallel fast sweeping 
 
 \end{thebibliography}
 
-\EOD
+\begin{IEEEbiography}[{\includegraphics[width=1in,height=1.25in,clip,keepaspectratio]{photos/alexey_budak_ieee.png}}]{Alexey Budak}
+received the B.S. and M.S. degrees in computer science and applied mathematics from Lomonosov Moscow State University, Moscow, Russia, in 2024 and 2026, respectively.
 
+He is currently a Junior Researcher with the Lomonosov Moscow State University, Moscow, Russia. He has authored or coauthored ?? publications in the field of computer graphics. His research interests include computer graphics, signed distance functions, compact geometry representations, and procedural generation.
+\end{IEEEbiography}
+
+\begin{IEEEbiography}[{\includegraphics[width=1in,height=1.25in,clip,keepaspectratio]{photos/albert_garifullin_ieee.jpg}}]{Albert Garifullin}
+received the B.S. and M.S. degrees in computer science and applied mathematics from Lomonosov Moscow State University, Moscow, Russia, in 2023 and 2025, respectively.
+
+He is currently a Junior Researcher with the Lomonosov Moscow State University, Moscow, Russia. He has authored or coauthored eight research articles in the fields of computer science and computer graphics. His research interests include 3-D computer vision, computer graphics, procedural generation, and compact geometry representations.
+\end{IEEEbiography}
+
+\begin{IEEEbiography}[{\includegraphics[width=1in,height=1.25in,clip,keepaspectratio]{photos/vladimir_frolov_ieee.jpg}}]{Vladimir Frolov}
+received the M.S. degree in computer science and applied mathematics from the Faculty of Computational Mathematics and Cybernetics at Lomonosov Moscow State University, Moscow, Russia, in 2010. He received the Ph.D. degree in computer science at the Institute of Applied Mathematics of the Russian Academy of Sciences in 2015.
+
+He is currently a Senior Researcher with the Institute for Artificial Intelligence, Lomonosov Moscow State University, Moscow, Russia. His research interests include ray tracing, computer graphics, and artificial intelligence.
+\end{IEEEbiography}
+
+\begin{IEEEbiography}[{\includegraphics[width=1in,height=1.25in,clip,keepaspectratio]{photos/alexey_voloboy.jpg}}]{Alexey Voloboy}
+graduated from the Faculty of Mechanics and Mathematics at Lomonosov Moscow State University, Moscow, Russia, in 1988 (M.S. degrees in mathematics). He defended his Ph.D. thesis in computer science at the Institute of Applied Mathematics of the Russian Academy of Sciences in 2005 and his Doctoral thesis in 2012. 
+
+Dr. Voloboy is currently a Leading Researcher with the Lomonosov Moscow State University, Moscow, Russia. He has published more than 250 research articles and conference papers in computer science. His research interests include realistic computer graphics, computational optics, ray tracing technique, and lighting simulation.
+\end{IEEEbiography}
+
+\EOD
 \end{document}
