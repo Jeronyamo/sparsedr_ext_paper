@@ -59,9 +59,20 @@ computer vision, differentiable rendering, signed distance function, 3D reconstr
 
 \section{Introduction}
 
-\subsection{Differentiable rendering}
+3D reconstruction is one of the fundamental problems in computer vision. It is closely related to inverse rendering. While forward rendering involves generating 2D images from a 3D scene, the goal of inverse rendering is to reconstruct scene objects from a set of images assumed to be produced under a specific rendering process. Significant progress has been made in this area over the past decade, driven by the rapid development of differentiable rendering. Differentiable rendering assumes that all stages of the rendering pipeline are differentiable, thereby enabling the use of gradient-based optimization for scene reconstruction. Consequently, gradients of the loss function -- calculated based on the difference between the reconstructed and reference images -- can be propagated to the parameters being optimized (such as material properties and geometry), allowing them to converge toward the parameters of the reference scene during optimization process.
 
-3D reconstruction is one of the fundamental problems in computer vision. It is closely related to inverse rendering. While (forward) rendering consists of generating 2D images from a 3D scene, inverse rendering aims to recover the objects of a scene from a set of images assumed to be rendered under a specific process. Over the past decade, significant progress in solving this problem has been driven by the rapidly developing field of differentiable rendering. Differentiable rendering assumes that all stages of the rendering pipeline are differentiable, enabling the use of gradient-based optimization for scene reconstruction. As a result, gradients from a loss function defined between a reconstructed image and a corresponding reference image can be propagated to the optimized parameters -- such as materials and geometry -- which are expected to converge to those of the reference scene.
+In recent years, Signed Distance Functions (SDFs) become widely used in 3D reconstruction \cite{ref-lin-2020,ref-sommer-2022,ref-slavcheva-2016} and differentiable rendering \cite{DRSDF2022,DRSDF2024}. The smooth and continuous representation of surfaces provided by the SDFs is the main reasons behind this popularity. This property is also useful for the inverse CAD design problem \cite{invCAD1,invCAD2}, where the representation must be differentiable with respect to the model parameters. When modeling real-world objects, particularly in CAD systems, it is often unnecessary to compute SDF values throughout the entire 3D space. The primary interest lies in the thin region surrounding the surface, specifically, in the area where the absolute value of the SDF does not exceed a certain threshold distance. In \cite{RelaxBoundary}, this region is termed the "relaxed boundary." Sparse SDFs store and process data only within such regions.
+
+In this paper, we proposes a differentiable rendering method for sparse SDF representations. Our work builds upon the relaxed boundary approach~\cite{RelaxBoundary}, yet we have redesigned every stage of the optimization algorithm. To address the high computational cost of the redistancing procedure, we propose an approach that outperforms the existing algorithm in terms of efficiency. This procedure significantly affects optimization time, as it is executed at each optimization step to update values following distance changes; since the grid ceases to represent a valid distance function, all distance values at the grid nodes must be recalculated. The main contributions of this work are as follows:
+
+\begin{itemize}
+    \item A differentiable rendering algorithm for sparse SDF representations that outperforms the baseline method in speed and reduces the growth rate of the optimized model's size by an order of magnitude.
+    \item Two variants of a redistancing algorithm for sparse representations, one of which is specifically adopted to the requirements of differentiable rendering.
+\end{itemize}
+
+\section{Related Work}
+
+\subsection{Differentiable rendering}
 
 A large number of methods have been proposed that provide differentiable rendering algorithms for various types of scene representations. These methods can be broadly divided into two categories: neural and non-neural approaches. The former includes NeRF \cite{NeRF} and other neural rendering techniques that reconstruct such representations as point clouds or signed distance functions (SDFs) \cite{NeUS2, NeuAngelo}. The latter category includes methods such as Gaussian splatting \cite{3DGS, 2DGS} and mesh splatting \cite{MeshS}.
 
@@ -90,24 +101,15 @@ After 2021, several studies have been devoted to differentiable rendering using 
 
 In \cite{HanssonSoderlund}, existing SDF representations are analyzed and new variants are proposed, along with methods for intersection search. In addition to the standard sphere tracing algorithm, two new methods for ray-voxel intersection are introduced. To the best of our knowledge, these representations have not previously been used in differentiable rendering.
 
-In 2022, reparameterization was first applied to signed distance functions \cite{DRSDF}. The study compared two approaches: the direct use of the 2020 method and a modified variant adapted specifically for SDFs. In parallel, \cite{NeuDRSDF} introduced a reparameterization technique for neural SDFs that eliminates the need for masking during optimization.
-
-Finally, in the relaxed boundary method \cite{RelaxBoundary}, the authors further develop the idea of reparameterization as a transformation from a surface integral to a volume integral. The proposed differentiable rendering approach leverages the properties of distance functions and replaces the boundary integral with an integral over a “relaxed boundary,” defined as a thin region surrounding the object silhouette. The use of SDFs enables the identification of points within this region during ray tracing: the value of the distance function at such points is below a predefined threshold determined by a hyperparameter.
-
-\subsection{Problems and contributions}
-
 \Figure[h](topskip=0pt, botskip=0pt, midskip=0pt)[width=0.95\textwidth]{Resources/SparseDR.pdf} {
     The setup of existing differentiable physically-based SDF rendering methods (left) vs. SparseDR (right). \label{figSparseDR}
 }
 
+In 2022, reparameterization was first applied to signed distance functions \cite{DRSDF}. The study compared two approaches: the direct use of the 2020 method and a modified variant adapted specifically for SDFs. In parallel, \cite{NeuDRSDF} introduced a reparameterization technique for neural SDFs that eliminates the need for masking during optimization.
+
+Finally, in the relaxed boundary method \cite{RelaxBoundary}, the authors further develop the idea of reparameterization as a transformation from a surface integral to a volume integral. The proposed differentiable rendering approach leverages the properties of distance functions and replaces the boundary integral with an integral over a “relaxed boundary,” defined as a thin region surrounding the object silhouette. The use of SDFs enables the identification of points within this region during ray tracing: the value of the distance function at such points is below a predefined threshold determined by a hyperparameter.
+
 Described methods advance differentiable physics-based rendering by introducing a simple approach for estimating boundary integrals for signed distance functions -- a representation that is more flexible for surface reconstruction than meshes. However, this approach has several drawbacks. First, the model size grows rapidly: during optimization, the grid resolution is progressively increased, and at each upsampling step its size expands eightfold, which significantly limits the method's scalability. Second, rendering remains slow due to its reliance on sphere tracing. Third, even for local modifications of distances near the surface, existing methods employ a computationally expensive redistancing algorithm. This procedure is applied at every optimization step to recompute values after distance updates, since the grid no longer represents a valid distance function; consequently, all grid distances must be recalculated.
-
-This work proposes a method for differentiable rendering of sparse SDF representations. Building on the relaxed boundary approach as a baseline, all stages of the optimization algorithm have been redesigned. The key contributions of this work are as follows:
-
-\begin{itemize}
-    \item An adaptation of differentiable SDF rendering for sparse representations, which outperforms the baseline method in terms of speed and reduces the growth of the optimized model size by an order of magnitude.
-    \item Two variants of a redistancing algorithm for sparse representations, one of which is specifically tailored to the requirements of differentiable rendering.
-\end{itemize}
 
 \section{Materials and Methods}
 
@@ -317,6 +319,30 @@ This work was supported by The Ministry of Economic Development of the Russian F
 
 
 \begin{thebibliography}{00}
+\bibitem{ref-lin-2020} 
+C. H. Lin, C. Wang, and S. Lucey, ``SDF-SRN: Learning Signed Distance 3D Object Reconstruction from static Images,'' Adv. Neural Inf. Process. Syst., vol. 33, pp.~11453--11464, 2020.
+
+\bibitem{ref-sommer-2022} 
+C. Sommer, L. Sang, D. Schubert, and D. Cremers, Gradient-SDF: A Semi-Implicit Surface Representation for 3D Reconstruction. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR), New Orleans, LA, USA, 2022. 10.1109/CVPR52688.2022.00618
+
+\bibitem{ref-slavcheva-2016} 
+M. Slavcheva, W. Kehl, N. Navab, and S. Ilic, SDF-2-SDF: Highly Accurate 3D Object Reconstruction. In Proceedings of the European Conference on Computer Vision (ECCV), Amsterdam, The Netherlands, pp. 680--696, 2016. 10.1007/978-3-319-46448-0\_41
+
+\bibitem{DRSDF2022} 
+D. Vicini, S. Speierer, and W. Jakob, ``Differentiable signed distance function rendering,'' ACM Trans. Graph. vol. 41, no. 4, 125, pp.~1--18, 2022. (TOG) 10.1145/3528223.3530139
+
+\bibitem{DRSDF2024} 
+Z. Wang, X. Deng, Z. Zhang, W. Jakob, and S. Marschner, A Simple Approach to Differentiable Rendering of SDFs. In Proceedings of SIGGRAPH Asia 2024 Conference Papers (SA '24). Article 119, 1–11, 2024. 10.1145/3680528.3687573
+
+\bibitem{invCAD1} 
+Z. Zhang, M. Zhao, Z. Shen, Y. Wang, X. Jia, and D.-M. Yan, ``Interactive reverse engineering of CAD models,'' Comput. Aided Geom. Des., vol. 111, p.~102339, 2024, doi: 10.1016/j.cagd.2024.102339
+
+\bibitem{invCAD2} 
+S. Kabisov, V. Kirichuk, A. Volkov, M. Barannikov, G. Savrasov, A. Konushin, et al., CADreasoner: Iterative program editing for CAD reverse engineering. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition, pp. 6143-6153, 2026.
+
+\bibitem{RelaxBoundary}
+Zichen Wang, Xi Deng, Ziyi Zhang, Wenzel Jakob, and Steve Marschner. (2024). A Simple Approach to Differentiable Rendering of SDFs. \textit{SIGGRAPH Asia 2024 Conference Papers (SA '24)}. Association for Computing Machinery, New York, NY, USA, Article 119, 1-11. doi: 10.1145/3680528.3687573.
+
 \bibitem{NeRF}
 Ben Mildenhall, Pratul P. Srinivasan, Matthew Tancik, Jonathan T. Barron, Ravi Ramamoorthi, and Ren Ng. (2021). NeRF: representing scenes as neural radiance fields for view synthesis. \textit{Commun. ACM}, 65, 1 (January 2022), 99-106. doi: 10.1145/3503250.
 
@@ -361,9 +387,6 @@ Delio Vicini, Sébastien Speierer, and Wenzel Jakob. 2022. Differentiable signed
 
 \bibitem{NeuDRSDF}
 Sai Praveen Bangaru, Michael Gharbi, Fujun Luan, Tzu-Mao Li, Kalyan Sunkavalli, Milos Hasan, Sai Bi, Zexiang Xu, Gilbert Bernstein, and Fredo Durand. (2022). Differentiable Rendering of Neural SDFs through Reparameterization. \textit{SIGGRAPH Asia 2022 Conference Papers (SA '22)}. Association for Computing Machinery, New York, NY, USA, Article 5, 1-9. doi: 10.1145/3550469.3555397.
-
-\bibitem{RelaxBoundary}
-Zichen Wang, Xi Deng, Ziyi Zhang, Wenzel Jakob, and Steve Marschner. (2024). A Simple Approach to Differentiable Rendering of SDFs. \textit{SIGGRAPH Asia 2024 Conference Papers (SA '24)}. Association for Computing Machinery, New York, NY, USA, Article 119, 1-11. doi: 10.1145/3680528.3687573.
 
 \bibitem{HanssonSoderlund}
 Herman Hansson-Söderlund, Alex Evans, and Tomas Akenine-Möller. (2022). Ray Tracing of Signed Distance Function Grids. \textit{Journal of Computer Graphics Techniques (JCGT)}, vol. 11, no. 3, 94-113, 2022.
