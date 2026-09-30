@@ -2,6 +2,7 @@
 %Adjusted 05/13/2026 at the byline author names
 \usepackage{cite}
 \usepackage{amsmath,amssymb,amsfonts}
+\usepackage{algorithm}
 \usepackage{algorithmic}
 \usepackage{graphicx}
 \usepackage{textcomp}
@@ -147,9 +148,9 @@ Local redistancing is an optimized version of the redistancing step performed af
 
 For a fixed SDF resolution, the optimization converges after several hundred iterations. To further improve reconstruction quality, it is necessary to upsample the grid (for convenience, we treat this step as separating optimization epochs). The final model quality directly depends on how many epochs can be afforded while maintaining a sufficiently high iteration speed and a reasonable representation size. In the SBS approach, upsampling is performed by introducing new distance values and subdividing each existing brick into eight smaller ones; each new brick contains the same number of distance samples as the original but represents a spatial region eight times smaller. A sparsification step is also introduced: bricks are added and removed such that the final representation consists only of bricks containing surface regions, along with a one-brick padding around them. Sparsification is always applied between epochs, but it can also be applied during an epoch, which is necessary when reconstructing models with fine details: such details cannot be reconstructed in early epochs due to the large scale of the grid, and in later epochs the bricks located in the place of these details may already have been removed.
 
-\begin{figure}[htbp]
-    \hrule\vbox{\vspace{2pt}}
-    \vskip 5pt
+\begin{algorithm}[htbp]
+    \caption{The optimization epoch algorithm.}
+    \label{alg:OptimEpoch}
 
     \begin{algorithmic}[1]
 \item[] \textbf{function} OptimEpoch($SDF_{init}, I_{ref}, M_{ref}, n_{ref}, n_{iter}$)
@@ -167,17 +168,11 @@ For a fixed SDF resolution, the optimization converges after several hundred ite
     \ENDFOR
     \RETURN $SDF_{res}$
     \end{algorithmic}
+\end{algorithm}
 
-    \vskip 2pt
-
-    \hrule
-    \caption{The optimization epoch algorithm. We apply sparse regularization and redistancing to areas close to the surface.}
-    \label{alg:OptimEpoch}
-\end{figure}
-
-\begin{figure}[htbp]
-    \hrule\vbox{\vspace{2pt}}
-    \vskip 5pt
+\begin{algorithm}[htbp]
+    \caption{The outer optimization loop.}
+    \label{alg:OptimFull}
 
     \begin{algorithmic}[1]
 \item[] \textbf{function} Optimize($I_{ref}, M_{ref}, n_{ref}$)
@@ -194,12 +189,7 @@ For a fixed SDF resolution, the optimization converges after several hundred ite
     \RETURN $SDF_{res}$
     \end{algorithmic}
 
-    \vskip 2pt
-
-    \hrule
-    \caption{The outer optimization loop. Between epochs we sparsify, upsample and apply global redistancing to the whole model.}
-    \label{alg:OptimFull}
-\end{figure}
+\end{algorithm}
 
 \section{Experimental Results}
 
@@ -309,8 +299,12 @@ Figure \ref{figSTNt} compares the runtime over seven epochs for two ray-SBS inte
 
 Newton's method exhibits shorter runtime than sphere tracing over the first seven epochs. This is because, at these SBS sizes, the number of voxels intersected by rays is still relatively small, so finding an intersection with a small number of iterations is faster than sphere tracing. As the number of voxels further increases, the number of SBS regions for which ray intersections must be computed also grows, raising the total cost per iteration; as a result, the advantage of the Newton method may diminish in later epochs.
 
-\Figure[b](topskip=0pt, botskip=0pt, midskip=0pt)[width=0.9\linewidth]{Resources/collage_mask_smol.png} {
+\Figure[htbp](topskip=0pt, botskip=0pt, midskip=0pt)[width=0.9\linewidth]{Resources/collage_mask.png} {
     The use of mask during reconstruction. Left column -- without a mask. Center column -- using a mask. Right column -- references. \label{figAblMask}
+}
+
+\Figure[htbp](topskip=0pt, botskip=0pt, midskip=0pt)[width=0.9\linewidth]{Resources/collage_sparsify.png} {
+    The use of sparsification during an epoch. Left column -- only basic sparsification between epochs. Center column -- sparsified during an epoch. Right column -- reference. \label{figAblSparsify}
 }
 
 % 3. Реконструкция с обеими версиями редистансинга -- скорость (без графика, только то, что в 30 раз быстрее на CPU), качество (качество, барплот по моделям, два столбца)
@@ -330,10 +324,6 @@ Another issue that requires consideration is the difference in reconstruction ac
 
 % В процессе реконструкции можно пользоваться дополнительными инструментами, которые помогут улучшить точность реконструкции моделей. Во-первых, можно использовать маску объекта для референсных изображений. Чувствительность к маске задаётся для каждой эпохи, по умолчанию она равна 0. Повышение её значения может дополнительно помочь с получением отверстий в сложной модели, если непосредственно дифференцируемому рендерингу не удаётся с ними справиться. На Рис. \ref{figAblMask} показаны примеры реконструкции модели Happy Buddha без маски и с ней, а также референсное изображение для наглядности.
 During reconstruction, additional tools can be employed to improve the accuracy of model reconstruction. First, object masks can be used for the reference images. Mask sensitivity is specified for each epoch and is set to 0 by default. Increasing its value can further help recover holes in complex models when differentiable rendering alone fails to handle them. Figure \ref{figAblMask} shows examples of reconstructing the Happy Buddha model without and with a mask, along with a reference image for clarity.
-
-\Figure[t](topskip=0pt, botskip=0pt, midskip=0pt)[width=0.9\linewidth]{Resources/collage_sparsify_smol.png} {
-    The use of sparsification during an epoch. Left column -- only basic sparsification between epochs. Center column -- sparsified during an epoch. Right column -- reference. \label{figAblSparsify}
-}
 
 % 5. Использование sparsification в течение эпохи -- помогает с мелкими деталями -> Helicopter (примеры реконструкции с/без).
 
