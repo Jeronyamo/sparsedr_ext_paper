@@ -148,6 +148,60 @@ Local redistancing is an optimized version of the redistancing step performed af
 
 For a fixed SDF resolution, the optimization converges after several hundred iterations. To further improve reconstruction quality, it is necessary to upsample the grid (for convenience, we treat this step as separating optimization epochs). The final model quality directly depends on how many epochs can be afforded while maintaining a sufficiently high iteration speed and a reasonable representation size. In the SBS approach, upsampling is performed by introducing new distance values and subdividing each existing brick into eight smaller ones; each new brick contains the same number of distance samples as the original but represents a spatial region eight times smaller. A sparsification step is also introduced: bricks are added and removed such that the final representation consists only of bricks containing surface regions, along with a one-brick padding around them. Sparsification is always applied between epochs, but it can also be applied during an epoch, which is necessary when reconstructing models with fine details: such details cannot be reconstructed in early epochs due to the large scale of the grid, and in later epochs the bricks located in the place of these details may already have been removed.
 
+\begin{figure}[htbp]
+    \hrule\vbox{\vspace{2pt}}
+    \vskip 5pt
+
+    \begin{algorithmic}[1]
+\item[] \textbf{function} OptimEpoch($SDF_{init}, I_{ref}, M_{ref}, n_{ref}, n_{iter}$)
+    \STATE $SDF_{res} \leftarrow SDF_{init}$
+    \STATE $S_{mark} \leftarrow $ MarkSurfaceBricks($SDF_{res}$)
+    \FOR{$i = 1$ \TO $n_{iter}$}
+        \STATE $k \leftarrow $ SelectView($n_{ref}$)
+        \STATE $I_{res}, \partial SDF \leftarrow $ Render($SDF_{res}, M_{ref}[k]$)
+        \STATE $L_{MSE} \leftarrow $ MSE($I_{res}, I_{ref}[k]$)
+        \STATE $\partial SDF \leftarrow $ dMSE($I_{res}, I_{ref}[k], L_{MSE}, \partial SDF$)
+        \STATE $L_{REG}, \partial SDF_{reg} \leftarrow $ RegularizeLocal($SDF_{res}, S_{mark}$)
+        \STATE $SDF_{res} \leftarrow$ Backpropagate($SDF_{res}, \partial SDF, \partial SDF_{reg}$)
+        \STATE $S_{mark} \leftarrow $ MarkSurfaceBricks($SDF_{res}$)
+        \STATE $SDF_{res} \leftarrow $ RedistanceLocal($SDF_{res}, S_{mark}$)
+    \ENDFOR
+    \RETURN $SDF_{res}$
+    \end{algorithmic}
+
+    \vskip 2pt
+
+    \hrule
+    \caption{The optimization epoch algorithm. We apply sparse regularization and redistancing to areas close to the surface.}
+    \label{alg:OptimEpoch}
+\end{figure}
+
+\begin{figure}[htbp]
+    \hrule\vbox{\vspace{2pt}}
+    \vskip 5pt
+
+    \begin{algorithmic}[1]
+\item[] \textbf{function} Optimize($I_{ref}, M_{ref}, n_{ref}$)
+    \STATE $SDF_{res} \leftarrow SDF_{sphere}$
+    \FOR{$i = 1$ \TO $n_{epoch}$}
+        \STATE $SDF_{res} \leftarrow $ OptimEpoch($SDF_{res}, I_{ref}, M_{ref}, n_{ref}, N_{iter}[i]$)
+        \STATE $S_{mark} \leftarrow $ MarkSurfaceBricks($SDF_{res}$)
+        \STATE $SDF_{res} \leftarrow $ Sparsify($SDF_{res}, S_{mark}$)
+        \IF{$i < n_{epoch}$}
+            \STATE $SDF_{res} \leftarrow $ Upsample($SDF_{res}$)
+        \ENDIF
+        \STATE $SDF_{res} \leftarrow $ RedistanceGlobal($SDF_{res}$)
+    \ENDFOR
+    \RETURN $SDF_{res}$
+    \end{algorithmic}
+
+    \vskip 2pt
+
+    \hrule
+    \caption{The outer optimization loop. Between epochs we sparsify, upsample and apply global redistancing to the whole model.}
+    \label{alg:OptimFull}
+\end{figure}
+
 \section{Experimental Results}
 
 This section consists of two parts: the first presents a comparison with the baseline method in terms of reconstruction time, quality, and the size of the resulting models; the second part is devoted to an ablation study of the proposed method. All experiments were conducted using an AMD Ryzen 9 7950X CPU and an NVIDIA GeForce RTX 4090 GPU.
@@ -168,7 +222,7 @@ Reconstruction was performed from 24 views uniformly distributed over a hemisphe
 }
 
 \Figure[h](topskip=0pt, botskip=0pt, midskip=0pt)[width=0.9\linewidth]{Resources/ieee_acc_time_5.pdf} {
-    Average iteration time for the epochs 1-5.
+    Average iteration time for the epochs 1-5. For each epoch, left bar is the baseline, right bar is our method.
     \label{figTime5}
 }
 
@@ -234,6 +288,10 @@ Table \ref{tab:comp_size} reports the sizes of the models obtained for each inpu
 
 \Figure[t](topskip=0pt, botskip=0pt, midskip=0pt)[width=0.9\linewidth]{Resources/ieee_acc_time_st_nt.pdf}{
     Average rendering time per epoch for Sphere Tracing and Newton intersection methods.\label{figSTNt}
+}
+
+\Figure[t](topskip=0pt, botskip=0pt, midskip=0pt)[width=0.9\linewidth]{Resources/ieee_acc_time_redist.pdf}{
+    Average redistancing time per epoch for local and global redistancing.\label{figGlobLoc}
 }
 
 % В данном подразделе исследуется влияние отдельных элементов алгоритма и параметров на скорость и качество реконструкции, а также приводятся дополнительные результаты экспериментов из прошлого подраздела, выходящие за рамки сравнения с базовым методом.
