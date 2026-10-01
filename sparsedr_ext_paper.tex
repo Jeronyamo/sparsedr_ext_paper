@@ -104,8 +104,8 @@ Since 2021, a number of studies have been devoted to differentiable rendering us
 
 The work \cite{HanssonSoderlund} analyzes existing SDF representations and proposed new variants, along with techniques for finding intersection. In addition to the standard sphere tracing algorithm, two new methods for ray-voxel intersection are presented. To the best of our knowledge, these representations have not previously been used in differentiable rendering.
 
-\Figure[h](topskip=0pt, botskip=0pt, midskip=0pt)[width=0.95\textwidth]{Resources/SparseDR.pdf} {
-    The setup of existing differentiable physically-based SDF rendering methods (left) vs. SparseDR (right). \label{figSparseDR}
+\Figure[h](topskip=0pt, botskip=0pt, midskip=0pt)[width=0.95\textwidth]{Resources/gear1.eps} {
+    The steps of SparseDR algorithm: rendering, gradient evaluation, sparsification, upsampling. Final step is the result after multiple epochs. \label{figSparseDR}
 }
 
 In \cite{DRSDF}, the reparameterization method was applied to signed distance functions for the first time. The study compared two approaches: the direct application of the method \cite{Reparam} and a modified variant adapted specifically for SDFs. In parallel, \cite{NeuDRSDF} proposed a reparameterization technique for neural SDFs that eliminates the need for masking during optimization.
