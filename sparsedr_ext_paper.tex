@@ -62,7 +62,7 @@ computer vision, 3D reconstruction, differentiable rendering, signed distance fu
 
 3D reconstruction is one of the fundamental problems in computer vision. It is closely related to inverse rendering. While forward rendering involves generating 2D images from a 3D scene, the goal of inverse rendering is to reconstruct scene objects from a set of images assumed to be produced under a specific rendering process. Significant progress has been made in this area over the past decade, driven by the rapid development of differentiable rendering. Differentiable rendering assumes that all stages of the rendering pipeline are differentiable, thereby enabling the use of gradient-based optimization for scene reconstruction. Consequently, gradients of the loss function -- calculated based on the difference between the reconstructed and reference images -- can be propagated to the parameters being optimized (such as material properties and geometry), allowing them to converge toward the parameters of the reference scene during optimization process.
 
-In recent years, Signed Distance Functions (SDFs) become widely used in 3D reconstruction \cite{ref-lin-2020,ref-sommer-2022,ref-slavcheva-2016} and differentiable rendering \cite{DRSDF2022,DRSDF2024}. The smooth and continuous representation of surfaces provided by the SDFs is the main reasons behind this popularity. This property is also useful for the inverse CAD design problem \cite{invCAD1,invCAD2}, where the representation must be differentiable with respect to the model parameters. When modeling real-world objects, particularly in CAD systems, it is often unnecessary to compute SDF values throughout the entire 3D space. The primary interest lies in the thin region surrounding the surface, specifically, in the area where the absolute value of the SDF does not exceed a certain threshold distance. In \cite{RelaxBoundary}, this region is termed the "relaxed boundary." Sparse SDFs store and process data only within such regions.
+In recent years, Signed Distance Functions (SDFs) become widely used in 3D reconstruction \cite{ref-lin-2020,ref-sommer-2022,ref-slavcheva-2016} and differentiable rendering \cite{DRSDF2022,RelaxBoundary}. The smooth and continuous representation of surfaces provided by the SDFs is the main reasons behind this popularity. This property is also useful for the inverse CAD design problem \cite{invCAD1,invCAD2}, where the representation must be differentiable with respect to the model parameters. When modeling real-world objects, particularly in CAD systems, it is often unnecessary to compute SDF values throughout the entire 3D space. The primary interest lies in the thin region surrounding the surface, specifically, in the area where the absolute value of the SDF does not exceed a certain threshold distance. In \cite{RelaxBoundary}, this region is termed the "relaxed boundary." Sparse SDFs store and process data only within such regions.
 
 In this paper, we proposes a differentiable rendering method for sparse SDF representations. Our work builds upon the relaxed boundary approach~\cite{RelaxBoundary}, yet we have redesigned every stage of the optimization algorithm. To address the high computational cost of the redistancing procedure, we propose an approach that outperforms the existing algorithm in terms of efficiency. This procedure significantly affects optimization time, as it is executed at each optimization step to update values following distance changes; since the grid ceases to represent a valid distance function, all distance values at the grid nodes must be recalculated. Although the core ideas used in this work were presented at the IJCAI’2026 conference \cite{ijcai2026}, the results reported in this paper are significantly expanded and advanced. In particular, the main algorithms were optimized, increasing the speedup of the reconstruction time from a factor of 2-3.5 to an order of magnitude. The size of the test dataset was doubled. Additional experiments and comparative studies were conducted, including an ablation study that was not presented at the conference.  
 
@@ -115,7 +115,7 @@ The described methods advance the differentiable, physics-based rendering by int
 
 \section{Method}
 
-Our method is named SparseDR (Differentiable Rendering for Sparse SDF). Its main idea is illustrated in Fig.~\ref{figSparseDR}. The reconstruction process proceeds over several epochs. Each epoch consists of several hundred iterations, comprising the following steps. First, a batch of images is rendered using reference viewpoints with gradient accumulation. Next, regularization is applied to the distance values. A loss function representing the discrepancy between the synthesized and reference images is then computed, and backpropagation is performed. At the end of each iteration, a local redistancing procedure is carried out. Between epochs, sparsification and upsampling of the signed distance function (SDF) are performed, followed by a global redistancing calculation.
+Our method is named SparseDR (Differentiable Rendering for Sparse SDF). Its main idea is illustrated in Fig.~\ref{figSparseDR}. The reconstruction process proceeds over several epochs. Each epoch, described in Algorithm \ref{alg:OptimEpoch}, consists of several hundred iterations, comprising the following steps. First, a batch of images is rendered using reference viewpoints with gradient accumulation. Next, regularization is applied to the distance values. A loss function representing the discrepancy between the synthesized and reference images is then computed, and backpropagation is performed. At the end of each iteration, a local redistancing procedure is carried out. Between epochs, as shown in the Algorithm \ref{alg:OptimFull}, sparsification and upsampling of the signed distance function (SDF) are performed, followed by a global redistancing calculation.
 
 \subsection{Rendering and Gradient Evaluation}
 
@@ -198,11 +198,11 @@ This section consists of two parts: the first presents a comparison with the bas
 
 \subsection{Comparison to baseline}
 
-% Сравнения представляют собой реконструкцию моделей в максимально равных условиях с последующим сопоставлением времени, точности реконструкции, а также размеров полученных представлений для каждой эпохи. Реализация метода релаксированной границы взята из официального репозитория \cite{DRSDF24Repo}.
+% Сравнения представляют собой реконструкцию моделей в максимально равных условиях с последующим сопоставлением времени, точности реконструкции, а также размеров полученных представлений для каждой эпохи. Реализация метода релаксированной границы взята из официального репозитория \cite{RelaxRepo}.
 
 % Реконструкция велась на 24 ракурсах, равномерно распределённых на полусфере, разрешение изображений 1024*1024. В сцене два направленных источника света: (1,1,1) и (-1,-1,-1), а также ambient light. Размер батча 6. Hyperparameters, such as learning rate, Adam optimizer parameters, relaxed boundary width, взяты из конфигурационного файла в репозитории базового метода. Восстанавливались 12 моделей: 4 модели from Stanford 3D scans repository, Nefertiti scan, Utah teapot, а также сканы Artec3D: Buggy, Demogorgon, Doom, Helicopter, Pufferfish, Wheel.
 
-Comparisons consist of reconstructing models under maximally equal conditions, followed by comparing reconstruction time, accuracy, and the sizes of the resulting representations for each epoch. The implementation of the relaxed boundary method is taken from the official repository \cite{DRSDF24Repo}.
+Comparisons consist of reconstructing models under maximally equal conditions, followed by comparing reconstruction time, accuracy, and the sizes of the resulting representations for each epoch. The implementation of the relaxed boundary method is taken from the official repository \cite{RelaxRepo}.
 
 Reconstruction was performed from 24 views uniformly distributed over a hemisphere, with image resolution 1024x1024. The scene contains two directional light sources at (1,1,1) and (-1,-1,-1), as well as ambient light. The batch size is 6. Hyperparameters, such as learning rate, Adam optimizer parameters, and relaxed boundary width, are taken from the configuration file in the base method's repository. Twelve models were reconstructed: four models from the Stanford 3D Scans Repository, the Nefertiti scan, the Utah teapot, and Artec3D scans: Buggy, Demogorgon, Doom, Helicopter, Pufferfish, and Wheel.
 
@@ -280,9 +280,21 @@ Table \ref{tab:comp_size} reports the sizes of the models obtained for each inpu
     Average rendering time per epoch for Sphere Tracing and Newton intersection methods.\label{figSTNt}
 }
 
-\Figure[t](topskip=0pt, botskip=0pt, midskip=0pt)[width=0.9\linewidth]{Resources/ieee_acc_time_redist.pdf}{
-    Average redistancing time per epoch for local and global redistancing.\label{figGlobLoc}
-}
+\begin{table}
+    \centering
+    \begin{tabular}{cccccc}
+        \toprule
+        Representation & $128^3$ & $256^3$ & $512^3$ & $1024^3$ & $2048^3$  \\
+        \midrule[\heavyrulewidth]
+        Local  & 2.88 & 11.93 &  59.83 &  388.24 & 1803.84 \\
+        \cmidrule(lr){1-1}
+        \cmidrule(lr){2-6}
+        Global &70.48 &307.60 &1494.15 &23142.38 &39645.30  \\
+        \bottomrule
+    \end{tabular}
+    \caption{Average redistancing time per epoch, on epochs 3-7, for local and global redistancing, ms.}
+    \label{figGlobLoc}
+\end{table}
 
 % В данном подразделе исследуется влияние отдельных элементов алгоритма и параметров на скорость и качество реконструкции, а также приводятся дополнительные результаты экспериментов из прошлого подраздела, выходящие за рамки сравнения с базовым методом.
 
@@ -368,31 +380,31 @@ This work was supported by The Ministry of Economic Development of the Russian F
 
 \begin{thebibliography}{00}
 \bibitem{ref-lin-2020} 
-C. H. Lin, C. Wang, and S. Lucey, ``SDF-SRN: Learning Signed Distance 3D Object Reconstruction from static Images,'' Adv. Neural Inf. Process. Syst., vol. 33, pp.~11453--11464, 2020.
+C. H. Lin, C. Wang, and S. Lucey, ``SDF-SRN: Learning Signed Distance 3D Object Reconstruction from static Images,'' \textit{Adv. Neural Inf. Process. Syst.}, vol. 33, pp.~11453--11464, 2020.
 
 \bibitem{ref-sommer-2022} 
-C. Sommer, L. Sang, D. Schubert, and D. Cremers, Gradient-SDF: A Semi-Implicit Surface Representation for 3D Reconstruction. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR), New Orleans, LA, USA, 2022. 10.1109/CVPR52688.2022.00618
+C. Sommer, L. Sang, D. Schubert, and D. Cremers, Gradient-SDF: A Semi-Implicit Surface Representation for 3D Reconstruction. \textit{In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR)}, New Orleans, LA, USA, 2022. 10.1109/CVPR52688.2022.00618
 
 \bibitem{ref-slavcheva-2016} 
-M. Slavcheva, W. Kehl, N. Navab, and S. Ilic, SDF-2-SDF: Highly Accurate 3D Object Reconstruction. In Proceedings of the European Conference on Computer Vision (ECCV), Amsterdam, The Netherlands, pp. 680--696, 2016. 10.1007/978-3-319-46448-0\_41
+M. Slavcheva, W. Kehl, N. Navab, and S. Ilic, SDF-2-SDF: Highly Accurate 3D Object Reconstruction. \textit{In Proceedings of the European Conference on Computer Vision (ECCV)}, Amsterdam, The Netherlands, pp. 680--696, 2016. 10.1007/978-3-319-46448-0\_41
 
 \bibitem{DRSDF2022} 
-D. Vicini, S. Speierer, and W. Jakob, ``Differentiable signed distance function rendering,'' ACM Trans. Graph. vol. 41, no. 4, 125, pp.~1--18, 2022. (TOG) 10.1145/3528223.3530139
-
-\bibitem{DRSDF2024} 
-Z. Wang, X. Deng, Z. Zhang, W. Jakob, and S. Marschner, A Simple Approach to Differentiable Rendering of SDFs. In Proceedings of SIGGRAPH Asia 2024 Conference Papers (SA '24). Article 119, 1–11, 2024. 10.1145/3680528.3687573
+D. Vicini, S. Speierer, and W. Jakob, ``Differentiable signed distance function rendering,'' \textit{ACM Trans. Graph.}, vol. 41, no. 4, 125, pp.~1--18, 2022. (TOG) 10.1145/3528223.3530139
 
 \bibitem{invCAD1} 
-Z. Zhang, M. Zhao, Z. Shen, Y. Wang, X. Jia, and D.-M. Yan, ``Interactive reverse engineering of CAD models,'' Comput. Aided Geom. Des., vol. 111, p.~102339, 2024, doi: 10.1016/j.cagd.2024.102339
+Z. Zhang, M. Zhao, Z. Shen, Y. Wang, X. Jia, and D.-M. Yan, ``Interactive reverse engineering of CAD models,'' \textit{Comput. Aided Geom. Des.}, vol. 111, p.~102339, 2024, doi: 10.1016/j.cagd.2024.102339
 
 \bibitem{invCAD2} 
-S. Kabisov, V. Kirichuk, A. Volkov, M. Barannikov, G. Savrasov, A. Konushin, et al., CADreasoner: Iterative program editing for CAD reverse engineering. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition, pp. 6143-6153, 2026.
+S. Kabisov, V. Kirichuk, A. Volkov, M. Barannikov, G. Savrasov, A. Konushin, et al., CADreasoner: Iterative program editing for CAD reverse engineering. \textit{In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition}, pp. 6143-6153, 2026.
 
 \bibitem{RelaxBoundary}
 Zichen Wang, Xi Deng, Ziyi Zhang, Wenzel Jakob, and Steve Marschner. (2024). A Simple Approach to Differentiable Rendering of SDFs. \textit{SIGGRAPH Asia 2024 Conference Papers (SA '24)}. Association for Computing Machinery, New York, NY, USA, Article 119, 1-11. doi: 10.1145/3680528.3687573.
 
+\bibitem{RelaxRepo}
+Zichen Wang. (2024). A Simple Approach to Differentiable Rendering of SDFs: official repository. URL: https://github.com/zichenwang01/relaxed-boundary/
+
 \bibitem{ijcai2026}
-A. Budak, A. Garifullin, and V. Frolov. SparseDR: Differentiable Rendering of Sparse Signed Distance Fields. In Proceedings of the 35th International Joint Conference on Artificial Intelligence. Demo track. pp.~8371-8374. 10.24963/ijcai.2026/959
+A. Budak, A. Garifullin, and V. Frolov. SparseDR: Differentiable Rendering of Sparse Signed Distance Fields. \textit{In Proceedings of the 35th International Joint Conference on Artificial Intelligence. Demo track}. pp.~8371-8374. 10.24963/ijcai.2026/959
 
 \bibitem{NeRF}
 Ben Mildenhall, Pratul P. Srinivasan, Matthew Tancik, Jonathan T. Barron, Ravi Ramamoorthi, and Ren Ng. (2021). NeRF: representing scenes as neural radiance fields for view synthesis. \textit{Commun. ACM}, 65, 1 (January 2022), 99-106. doi: 10.1145/3503250.
