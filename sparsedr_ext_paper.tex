@@ -31,15 +31,16 @@
 
 \title{Differentiable Rendering of Sparse Signed Distance Functions}
 \author{\uppercase{Alexey Budak}\authorrefmark{1}, 
-\uppercase{Albert Garifullin}\authorrefmark{1}, 
-\uppercase{Vladimir Frolov}\authorrefmark{2}, AND
-\uppercase{Alexey Voloboy}\authorrefmark{1}}
+\uppercase{Albert Garifullin}\authorrefmark{2}, 
+\uppercase{Vladimir Frolov}\authorrefmark{1}, AND
+\uppercase{Alexey Voloboy}\authorrefmark{2}}
 
-\address[1]{Lomonosov Moscow State University, 119991 Moscow, Russia}
-\address[2]{Institute for Artificial Intelligence of Lomonosov Moscow State University (IAI MSU), 119192 Moscow, Russia}
+\address[1]{Institute for Artificial Intelligence of Lomonosov Moscow State University (IAI MSU), 119192 Moscow, Russia}
+\address[2]{Lomonosov Moscow State University, 119991 Moscow, Russia}
 
 % Add grants, funding, and acknowledgments here if applicable.
 % \tfootnote{This work was supported by ...}
+\tfootnote{The work of A. Garifullin and A. Voloboy was supported by The Ministry of Economic Development of the Russian Federation in accordance with the subsidy agreement (agreement identifier 000000C313925P4H0002; grant No 139-15-2025-012)}
 
 \markboth{Budak \headeretal: Differentiable Rendering of Sparse Signed Distance Functions}
 {Budak \headeretal: Differentiable Rendering of Sparse Signed Distance Functions}
@@ -116,6 +117,24 @@ The described methods advance the differentiable, physics-based rendering by int
 \section{Method}
 
 Our method is named SparseDR (Differentiable Rendering for Sparse SDF). Its main idea is illustrated in Fig.~\ref{figSparseDR}. The reconstruction process proceeds over several epochs. At a fixed SDF resolution, the optimization process converges within a few hundred iterations. To further improve reconstruction quality, the grid resolution must be increased. We treat this as a division into optimization epochs. Each epoch, described in Algorithm \ref{alg:OptimEpoch}, consists of several hundred iterations, comprising the following steps. First, a batch of images is rendered using reference viewpoints with gradient accumulation. Next, regularization is applied to the distance values. A loss function representing the discrepancy between the synthesized and reference images is then computed, and backpropagation is performed. At the end of each iteration, a local redistancing procedure is carried out. Between epochs, as shown in the Algorithm \ref{alg:OptimFull}, sparsification and upsampling of the signed distance function (SDF) are performed, followed by a global redistancing calculation.
+
+\subsection{Workflow Overview}
+
+% Заданием по оптимизации можно управлять через входной конфигурационный файл. В нём указываются, в частности, входные данные: референсные изображения $I_{ref}$ и соответствующие положения камер $M_{ref}$; число эпох $n_{epoch}$, число итераций для каждой эпохи $N_{iter}[i]$; гиперпараметры метода.
+
+% Внешний цикл по эпохам показан в Алгоритме \ref{alg:OptimFull}. Мы инициализируем наше представление $SDF_{res}$ моделью сферы $SDF_{sphere}$, после чего начинаем его реконструкцию. Каждая эпоха состоит из заданного числа итераций, а также дополнительных шагов пост-обработки.
+
+% Цикл эпохи оптимизации приведён в Алгоритме \ref{alg:OptimEpoch}. Мы принимаем на вход $SDF_{init}$, которая является результатом работы предыдущей эпохи (или $SDF_{sphere}$ в первую эпоху), а также все изображения $I_{ref}$ и соответствующие положения камер $M_{ref}$, их количество $n_{ref}$ и число итераций для данной эпохи $n_{iter}$. Мы анализируем полученную на вход модель и маркируем bricks of the модели, близкие к поверхности, в виде $S_{mark}$. После этого мы на каждой итерации выбираем $k$-ый ракурс, затем дифференцируемо отрисовываем для него изображение сцены в текущем виде, получая рендер $I_{res}$ вместе с производными по параметрам дистанций $\partial SDF$. После этого считаем лосс: MSE между $I_{res}$ и $I_{ref}[k]$, рассчитываем производную MSE по параметрам модели и обновляем $\partial SDF$. Затем применяем сглаживающую регуляризацию к брикам около поверхности, получаем градиенты $\partial SDF_{reg}$. После этого обновляем дистанции, используя полученные градиенты. Следом заново маркируем брики около поверхности и применяем к ним локальный редистансинг.
+
+% После эпохи оптимизации мы возвращаемся во внешний цикл (Алгоритм \ref{alg:OptimFull}). Полученная модель $SDF_{res}$ разреживается, затем (за исключением последней эпохи) её разрешение удваивается; в конце к $SDF_{res}$ применяется глобальный редистансинг, чтобы на выходе модель была корректной SDF.
+
+The SparseDR optimization procedure is controlled through an input configuration file. Among other things, it specifies the input data: reference images $I_{ref}$ and the corresponding camera views $M_{ref}$; the number of epochs $n_{epoch}$, the array containing number of iterations for each epoch $N_{iter}$; and the method hyperparameters.
+
+The outer loop over epochs is shown in Algorithm \ref{alg:OptimFull}. We initialize our representation $SDF_{res}$ with a sphere model $SDF_{sphere}$ and then begin its reconstruction. Each epoch consists of a specified number of iterations as well as additional post-processing steps.
+
+The optimization epoch loop is presented in Algorithm \ref{alg:OptimEpoch}. As input, we take $SDF_{init}$, which is the result produced by the previous epoch (or $SDF_{sphere}$ for the first epoch), as well as all images $I_{ref}$ and their corresponding camera views $M_{ref}$, their number $n_{ref}$, and the number of iterations for the current epoch $n_{iter}$. We analyze the input model and mark the bricks of the model that are close to the surface as $S_{mark}$. Then, at each iteration, we select the $k$-th viewpoint and differentiably render the image of the scene in its current state, obtaining the render $I_{res}$ together with derivatives with respect to the distance parameters, $\partial SDF$. We then compute the MSE loss between $I_{res}$ and $I_{ref}[k]$, calculate the derivative of the MSE with respect to the model parameters, and update $\partial SDF$. Next, we apply smoothing regularization to the bricks near the surface, obtaining the gradients $\partial SDF_{reg}$. The distances are then updated using the resulting gradients. Subsequently, we mark the bricks near the surface again and apply local redistancing to them.
+
+After the optimization epoch, we return to the outer loop (Algorithm \ref{alg:OptimFull}). The resulting model $SDF_{res}$ is sparsified, after which (except for the final epoch) its resolution is doubled; finally, global redistancing is applied to $SDF_{res}$ so that the output model would become a valid SDF.
 
 \subsection{Rendering and Gradient Evaluation}
 
@@ -361,14 +380,15 @@ Figure \ref{figExamples} shows reconstruction examples on models from the datase
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\section{Conclusion}
+\section{Conclusion and Future Work}
 
-In this work, we propose a method for differentiable rendering of sparse SDFs. The conducted experiments demonstrate its potential for geometry reconstruction tasks. It should be noted that the current implementation does not include secondary rays and material reconstruction; however, the method's architecture does not preclude its extension to full path tracing. Incorporating this feature would require additional development and optimization effort, but the obtained results are promising and provide strong motivation for further research and refinement of the method.
+In this work, we propose SparseDR, an efficient reconstruction method based on differentiable rendering of sparse signed distance fields (SDFs). Our method achieves high accuracy through the high effective resolution of the representation while maintaining a controlled memory footprint by storing data sparsely. We demonstrate that sparse SDF representations can serve as first-class geometric representations for reconstruction applications with direct ray-traced rendering, enabling fast ray-traced visualization of such representations in interactive 3D applications.
 
-% We also highlight the limitations of using MSE as a loss function. Figure \ref{LimPSNR} illustrates a reconstruction result that appears inadequate despite achieving a high PSNR score. This discrepancy stems from a well-known drawback of MSE, namely its inability to capture structural characteristics of images. In this regard, the use of DSSIM as an alternative loss function to replace MSE is considered.
+The current implementation focuses on geometry reconstruction and direct illumination. It does not yet model secondary rays or estimate material properties. However, the underlying architecture can be extended toward a fully differentiable path tracer. Future work will incorporate secondary rays and more complete light transport simulation to improve reconstruction in scenes where indirect illumination affects the observed images. We also plan to jointly reconstruct geometry, light sources, and material properties. Although these extensions require further development, the present results show that sparse SDF-based differentiable rendering is a suitable foundation for inverse rendering systems that recover geometry, materials, and illumination.
 
-\section{Acknowledgments}
-This work was supported by The Ministry of Economic Development of the Russian Federation in accordance with the subsidy agreement (agreement identifier 000000C313925P4H0002; grant No 139-15-2025-012).
+% Note: acknowledgment here must be omitted in favor of footnote at the title page. 
+% \section{Acknowledgments}
+% This work was supported by The Ministry of Economic Development of the Russian Federation in accordance with the subsidy agreement (agreement identifier 000000C313925P4H0002; grant No 139-15-2025-012).
 
 \vspace{6pt}
 
