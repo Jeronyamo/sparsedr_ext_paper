@@ -141,9 +141,25 @@ Our global redistancing is the redistancing procedure for SBS structure. To ensu
     Global (left) and local (right) redistancing. Dots represent distance values; bricks are 3x3 values. Red (blue) dots are the values outside (inside) the object. The dashed line represents the surface. Arrows show the order of updating values. Local redistancing ignores the bricks without the surface. \label{figRedistTypes}
 }
 
+\begin{table}
+    \centering
+    \caption{Average redistancing time per epoch, on epochs 3-7, for local and global redistancing, ms.}
+    \begin{tabular}{cccccc}
+        \toprule
+        Representation & $128^3$ & $256^3$ & $512^3$ & $1024^3$ & $2048^3$  \\
+        \midrule[\heavyrulewidth]
+        Local  & 2.88 & 11.93 &  59.83 &  388.24 & 1803.84 \\
+        \cmidrule(lr){1-1}
+        \cmidrule(lr){2-6}
+        Global &70.48 &307.60 &1494.15 &23142.38 &39645.30  \\
+        \bottomrule
+    \end{tabular}
+    \label{tabGlobLoc}
+\end{table}
+
 One of the advantages of voxel-based intersection search methods is that they are less sensitive to the accuracy of distance values than sphere tracing. As a result, a voxel can be safely ignored if all its distance values exceed a relaxed epsilon; in this case, neither an intersection point nor a relaxed boundary point can be found within it. Consequently, precise distance values within bricks that do not contain the surface are of limited importance; in particular, there is no need to recompute distances for such bricks.
 
-Local redistancing is performed frequently, after each iteration of the method. So we have further optimized the algorithm. The first optimization restricts distance recomputation to only bricks that contain the surface. The second optimization assumes that distances within surface-containing bricks depend only on the surface within that specific brick, disregarding distances in neighboring bricks. This assumption simplifies implementation and improves data locality without significantly compromising reconstruction quality.  Fig. \ref{figRedistTypes} illustrates the concept behind this local redistancing optimization.
+Local redistancing is performed frequently, after each iteration of the method. So we have further optimized the algorithm. The first optimization restricts distance recomputation to only bricks that contain the surface. The second optimization assumes that distances within surface-containing bricks depend only on the surface within that specific brick, disregarding distances in neighboring bricks. This assumption simplifies implementation and improves data locality without significantly compromising reconstruction quality.  Fig. \ref{figRedistTypes} illustrates the concept behind this local redistancing optimization. Optimization of local algorithm significantly accelerates the redistancing (Table \ref{tabGlobLoc}) for an iteration performed several hundred times per epoch.
 
 \subsection{Upsampling and Sparsification}
 
@@ -279,22 +295,6 @@ Table \ref{tab:comp_size} reports the sizes of the models obtained for each inpu
 \Figure[t](topskip=0pt, botskip=0pt, midskip=0pt)[width=0.9\linewidth]{Resources/ieee_acc_time_st_nt.pdf}{
     Average rendering time per epoch for Sphere Tracing and Newton intersection methods.\label{figSTNt}
 }
-
-\begin{table}
-    \centering
-    \begin{tabular}{cccccc}
-        \toprule
-        Representation & $128^3$ & $256^3$ & $512^3$ & $1024^3$ & $2048^3$  \\
-        \midrule[\heavyrulewidth]
-        Local  & 2.88 & 11.93 &  59.83 &  388.24 & 1803.84 \\
-        \cmidrule(lr){1-1}
-        \cmidrule(lr){2-6}
-        Global &70.48 &307.60 &1494.15 &23142.38 &39645.30  \\
-        \bottomrule
-    \end{tabular}
-    \caption{Average redistancing time per epoch, on epochs 3-7, for local and global redistancing, ms.}
-    \label{figGlobLoc}
-\end{table}
 
 % В данном подразделе исследуется влияние отдельных элементов алгоритма и параметров на скорость и качество реконструкции, а также приводятся дополнительные результаты экспериментов из прошлого подраздела, выходящие за рамки сравнения с базовым методом.
 
