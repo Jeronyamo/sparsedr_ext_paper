@@ -40,7 +40,7 @@
 
 % Add grants, funding, and acknowledgments here if applicable.
 % \tfootnote{This work was supported by ...}
-\tfootnote{The work of A. Garifullin and A. Voloboy was supported by The Ministry of Economic Development of the Russian Federation in accordance with the subsidy agreement (agreement identifier 000000C313925P4H0002; grant No 139-15-2025-012)}
+\tfootnote{This work was supported by The Ministry of Economic Development of the Russian Federation in accordance with the subsidy agreement (agreement identifier 000000C313925P4H0002; grant No 139-15-2025-012)}
 
 \markboth{Budak \headeretal: Differentiable Rendering of Sparse Signed Distance Functions}
 {Budak \headeretal: Differentiable Rendering of Sparse Signed Distance Functions}
@@ -335,9 +335,9 @@ Figure \ref{figExamples} presents examples of model reconstructions from the dat
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Conclusion and Future Work}
 
-In this work, we propose SparseDR, an efficient reconstruction method based on differentiable rendering of sparse signed distance fields (SDFs). Our method achieves high accuracy through the high effective resolution of the representation while maintaining a controlled memory footprint by storing data sparsely. We demonstrate that sparse SDF representations can serve as first-class geometric representations for reconstruction applications with direct ray-traced rendering, enabling fast ray-traced visualization of such representations in interactive 3D applications.
+In this work, we propose SparseDR, an efficient reconstruction method based on the differentiable rendering of sparse signed distance functions (SDFs). Our method achieves high accuracy through the high effective resolution of the representation while maintaining a controlled memory footprint via sparse data storage. We demonstrate that sparse SDF representations can serve as a viable geometric representation for reconstruction applications using direct ray-traced rendering, enabling fast ray-traced visualization in CAD systems and interactive 3D applications.
 
-The current implementation focuses on geometry reconstruction and direct illumination. It does not yet model secondary rays or estimate material properties. However, the underlying architecture can be extended toward a fully differentiable path tracer. Future work will incorporate secondary rays and more complete light transport simulation to improve reconstruction in scenes where indirect illumination affects the observed images. We also plan to jointly reconstruct geometry, light sources, and material properties. Although these extensions require further development, the present results show that sparse SDF-based differentiable rendering is a suitable foundation for inverse rendering systems that recover geometry, materials, and illumination.
+The current implementation focuses on geometry reconstruction and direct illumination. It does not yet model secondary rays or estimate material properties. However, the underlying architecture allows for extension into a full-fledged differentiable path tracer. Future work will include support for secondary rays and more comprehensive light transport simulation to improve reconstruction quality in scenes where indirect illumination noticeably influences the final image. We also intend to implement the joint reconstruction of geometry, light sources, and material properties. Although these extensions require further development, the present results show that sparse SDF-based differentiable rendering is a suitable foundation for inverse rendering systems that recover geometry, materials, and lighting parameters.
 
 % Note: acknowledgment here must be omitted in favor of footnote at the title page. 
 % \section{Acknowledgments}
