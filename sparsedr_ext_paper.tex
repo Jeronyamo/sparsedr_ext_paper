@@ -118,6 +118,24 @@ The described methods advance the differentiable, physics-based rendering by int
 
 Our method is named SparseDR (Differentiable Rendering for Sparse SDF). Its main idea is illustrated in Fig.~\ref{figSparseDR}. The reconstruction process proceeds over several epochs. At a fixed SDF resolution, the optimization process converges within a few hundred iterations. To further improve reconstruction quality, the grid resolution must be increased. We treat this as a division into optimization epochs. Each epoch, described in Algorithm \ref{alg:OptimEpoch}, consists of several hundred iterations, comprising the following steps. First, a batch of images is rendered using reference viewpoints with gradient accumulation. Next, regularization is applied to the distance values. A loss function representing the discrepancy between the synthesized and reference images is then computed, and backpropagation is performed. At the end of each iteration, a local redistancing procedure is carried out. Between epochs, as shown in the Algorithm \ref{alg:OptimFull}, sparsification and upsampling of the signed distance function (SDF) are performed, followed by a global redistancing calculation.
 
+\subsection{Workflow Overview}
+
+% Заданием по оптимизации можно управлять через входной конфигурационный файл. В нём указываются, в частности, входные данные: референсные изображения $I_{ref}$ и соответствующие положения камер $M_{ref}$; число эпох $n_{epoch}$, число итераций для каждой эпохи $N_{iter}[i]$; гиперпараметры метода.
+
+% Внешний цикл по эпохам показан в Алгоритме \ref{alg:OptimFull}. Мы инициализируем наше представление $SDF_{res}$ моделью сферы $SDF_{sphere}$, после чего начинаем его реконструкцию. Каждая эпоха состоит из заданного числа итераций, а также дополнительных шагов пост-обработки.
+
+% Цикл эпохи оптимизации приведён в Алгоритме \ref{alg:OptimEpoch}. Мы принимаем на вход $SDF_{init}$, которая является результатом работы предыдущей эпохи (или $SDF_{sphere}$ в первую эпоху), а также все изображения $I_{ref}$ и соответствующие положения камер $M_{ref}$, их количество $n_{ref}$ и число итераций для данной эпохи $n_{iter}$. Мы анализируем полученную на вход модель и маркируем bricks of the модели, близкие к поверхности, в виде $S_{mark}$. После этого мы на каждой итерации выбираем $k$-ый ракурс, затем дифференцируемо отрисовываем для него изображение сцены в текущем виде, получая рендер $I_{res}$ вместе с производными по параметрам дистанций $\partial SDF$. После этого считаем лосс: MSE между $I_{res}$ и $I_{ref}[k]$, рассчитываем производную MSE по параметрам модели и обновляем $\partial SDF$. Затем применяем сглаживающую регуляризацию к брикам около поверхности, получаем градиенты $\partial SDF_{reg}$. После этого обновляем дистанции, используя полученные градиенты. Следом заново маркируем брики около поверхности и применяем к ним локальный редистансинг.
+
+% После эпохи оптимизации мы возвращаемся во внешний цикл (Алгоритм \ref{alg:OptimFull}). Полученная модель $SDF_{res}$ разреживается, затем (за исключением последней эпохи) её разрешение удваивается; в конце к $SDF_{res}$ применяется глобальный редистансинг, чтобы на выходе модель была корректной SDF.
+
+The SparseDR optimization procedure is controlled through an input configuration file. Among other things, it specifies the input data: reference images $I_{ref}$ and the corresponding camera views $M_{ref}$; the number of epochs $n_{epoch}$, the array containing number of iterations for each epoch $N_{iter}$; and the method hyperparameters.
+
+The outer loop over epochs is shown in Algorithm \ref{alg:OptimFull}. We initialize our representation $SDF_{res}$ with a sphere model $SDF_{sphere}$ and then begin its reconstruction. Each epoch consists of a specified number of iterations as well as additional post-processing steps.
+
+The optimization epoch loop is presented in Algorithm \ref{alg:OptimEpoch}. As input, we take $SDF_{init}$, which is the result produced by the previous epoch (or $SDF_{sphere}$ for the first epoch), as well as all images $I_{ref}$ and their corresponding camera views $M_{ref}$, their number $n_{ref}$, and the number of iterations for the current epoch $n_{iter}$. We analyze the input model and mark the bricks of the model that are close to the surface as $S_{mark}$. Then, at each iteration, we select the $k$-th viewpoint and differentiably render the image of the scene in its current state, obtaining the render $I_{res}$ together with derivatives with respect to the distance parameters, $\partial SDF$. We then compute the MSE loss between $I_{res}$ and $I_{ref}[k]$, calculate the derivative of the MSE with respect to the model parameters, and update $\partial SDF$. Next, we apply smoothing regularization to the bricks near the surface, obtaining the gradients $\partial SDF_{reg}$. The distances are then updated using the resulting gradients. Subsequently, we mark the bricks near the surface again and apply local redistancing to them.
+
+After the optimization epoch, we return to the outer loop (Algorithm \ref{alg:OptimFull}). The resulting model $SDF_{res}$ is sparsified, after which (except for the final epoch) its resolution is doubled; finally, global redistancing is applied to $SDF_{res}$ so that the output model would become a valid SDF.
+
 \subsection{Rendering and Gradient Evaluation}
 
 Our reconstruction method employs the Sparse Brick Set (SBS) representation \cite{HanssonSoderlund}. This is a hybrid of hierarchical and regular structures: a BVH tree with leaf nodes storing small, regular SDF grids, which enables efficient culling of nodes that do not contain the object's surface. A ray first traverses the BVH tree; upon intersecting a leaf node, it proceeds to intersect the voxels of the corresponding brick. The ray continues moving through bricks along its trajectory until it either reaches the surface or exhausts the bricks in its path.
@@ -250,6 +268,9 @@ Figure \ref{figPSNR57} shows the average PSNR over views for renders of the refe
 
 \begin{table}
     \centering
+    \caption{The model sizes for the Relaxed Boundary and SparseDR methods, epochs 3-7. All values are in MBs. Asterisks denote theoretical values, as we could not acquire them on our hardware (OOM in Dr. JIT). For the baseline method, the grid size is reported, whereas for our method we report the combined size of the SBS and its BVH.
+    }
+    \label{tab:comp_size}
     \begin{tabular}{ccccccc}
         \toprule
         Representation & $128^3$ & $256^3$ & $512^3$ & $1024^3$ & $2048^3$  \\
@@ -281,9 +302,6 @@ Figure \ref{figPSNR57} shows the average PSNR over views for renders of the refe
         Ours (Wheel)          & \textbf{7.2} & \textbf{29.6} & \textbf{142.6} & \textbf{ 734.0} & \textbf{3709.6}  \\
         \bottomrule
     \end{tabular}
-    \caption{The model sizes for the Relaxed Boundary and SparseDR methods, epochs 3-7. All values are in MBs. Asterisks denote theoretical values, as we could not acquire them on our hardware (OOM in Dr. JIT). For the baseline method, the grid size is reported, whereas for our method we report the combined size of the SBS and its BVH.
-    }
-    \label{tab:comp_size}
 \end{table}
 
 % В Таблице \ref{tab:comp_size} приведены размеры моделей, полученных для каждой модели на эпохах 3-7. Размер SDF сетки на каждой эпохе одинаков для всех моделей, поэтому они указаны один раз в верхней строке. В базовом методе в результате апсемплинга размер плотной сетки увеличивается в 8 раз от эпохи к эпохе. Благодаря использованию разреженной структуры данных, размер всех моделей, полученных нашим методом, меньше размера грида, начиная с четвёртой эпохи. Кроме того, размер модели после апсемплинга приблизительно в 4 раза больше исходной, так как модель хранит только дистанции у поверхности. Таким образом, рост размера моделей в нашем методе на порядок меньше, чем в базовом.
