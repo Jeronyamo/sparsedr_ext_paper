@@ -104,7 +104,7 @@ Since 2021, a number of studies have been devoted to differentiable rendering us
 
 The work \cite{HanssonSoderlund} analyzes existing SDF representations and proposed new variants, along with techniques for finding intersection. In addition to the standard sphere tracing algorithm, two new methods for ray-voxel intersection are presented. To the best of our knowledge, these representations have not previously been used in differentiable rendering.
 
-\Figure[h](topskip=0pt, botskip=0pt, midskip=0pt)[width=0.95\textwidth]{Resources/gear1.eps} {
+\Figure[h](topskip=0pt, botskip=0pt, midskip=0pt)[width=0.95\textwidth]{Resources/gear1.pdf} {
     The steps of SparseDR algorithm: rendering, gradient evaluation, sparsification, upsampling. Final step is the result after multiple epochs. \label{figSparseDR}
 }
 
@@ -116,13 +116,13 @@ The described methods advance the differentiable, physics-based rendering by int
 
 \section{Method}
 
-Our method is named SparseDR (Differentiable Rendering for Sparse SDF). Its main idea is illustrated in Fig.~\ref{figSparseDR}. The reconstruction process proceeds over several epochs, as shown in the Algorithm \ref{alg:OptimFull}. At a fixed SDF resolution, the optimization process converges within a few hundred iterations. To further improve reconstruction quality, the grid resolution must be increased. We treat this as a division into optimization epochs. Each epoch, described in Algorithm \ref{alg:OptimEpoch}, consists of several hundred iterations, comprising the following steps. First, a batch of images is rendered using reference viewpoints with gradient accumulation. Next, regularization is applied to the distance values. A loss function representing the discrepancy between the synthesized and reference images is then computed, and backpropagation is performed. At the end of each iteration, a local redistancing procedure is carried out. Between epochs, sparsification and upsampling of the signed distance function (SDF) are performed, followed by a global redistancing calculation.
+Our method is named SparseDR (Differentiable Rendering for Sparse SDF). The reconstruction process proceeds over several epochs, as shown in the Algorithm \ref{alg:OptimFull}. At a fixed SDF resolution, the optimization process converges within a few hundred iterations. To further improve reconstruction quality, the grid resolution must be increased. We treat this as a division into optimization epochs. Each epoch, described in Algorithm \ref{alg:OptimEpoch}, consists of several hundred iterations, comprising the following steps. First, a batch of images is rendered using reference viewpoints with gradient accumulation. Next, regularization is applied to the distance values. A loss function representing the discrepancy between the synthesized and reference images is then computed, and backpropagation is performed. At the end of each iteration, a local redistancing procedure is carried out. Between epochs, sparsification and upsampling of the signed distance function (SDF) are performed, followed by a global redistancing calculation. The main idea of SpareDR method is illustrated in Fig.~\ref{figSparseDR}.
 
 \subsection{Workflow Overview}
 
 The SparseDR optimization procedure is controlled via an input configuration file. This file specifies, among other things, the input data: reference images $I_{ref}$ and their corresponding camera views $M_{ref}$, the number of epochs $n_{epoch}$, the array $N_{iter}$ containing the number of iterations for each epoch, and the method hyperparameters.
 
-The outer optimization loop over epochs is outlined in Algorithm \ref{alg:OptimFull}. We initialize our representation $SDF_{res}$ with a sphere model $SDF_{sphere}$ (line 1) and then begin its reconstruction. Each epoch consists of a specified number of iterations presented in Algorithm \ref{alg:OptimEpoch} and post-processing steps (lines 5-9).
+The outer optimization loop over epochs is outlined in Algorithm \ref{alg:OptimFull}. We initialize our representation $SDF_{res}$ with a sphere model $SDF_{sphere}$ (line 1) and then begin its reconstruction. Each epoch consists of a specified number of iterations presented in Algorithm \ref{alg:OptimEpoch} and post-processing steps \mbox{(lines 5-9} in Algorithm \ref{alg:OptimFull}).
 
 \begin{algorithm}[htbp]
     \caption{The outer optimization loop.}
@@ -169,7 +169,7 @@ The outer optimization loop over epochs is outlined in Algorithm \ref{alg:OptimF
 
 The optimization loop for a single epoch is presented in Algorithm \ref{alg:OptimEpoch}. The input are: $SDF_{init}$ -- the result produced by the previous epoch (or $SDF_{sphere}$ for the first epoch), a set of reference images $I_{ref}$ and their corresponding camera views $M_{ref}$; the number of such images $n_{ref}$; and the number of iterations for the current epoch $n_{iter}$. We analyze the input model and mark the model bricks located near the surface as $S_{mark}$ (line 2). Then, in each iteration, we select the $k$-th viewpoint and perform differentiable rendering of the scene in its current state, obtaining an image $I_{res}$ and derivatives with respect to the distance parameters, $\partial SDF$ (lines 4-5) . Next, we compute the MSE loss between $I_{res}$ and $I_{ref}[k]$, calculate the derivative of the MSE with respect to the model parameters, and update $\partial SDF$ (lines 6-7). Following this, we apply smoothing regularization (line 8) to the bricks located near the surface, obtaining the gradients $\partial SDF_{reg}$. The distances are then updated using these gradients. Finally, we re-mark the bricks near the surface and apply local redistancing to them (lines 10-11).
 
-After the optimization epoch stage, we return to the outer loop (Algorithm \ref{alg:OptimFull}). The resulting model $SDF_{res}$ undergoes sparsification, after which  its resolution is doubled (except for the final epoch). Finally, global redistancing is applied to $SDF_{res}$ so that the output model become a valid SDF (line 9 in Algorithm \ref{alg:OptimFull}).
+After the optimization epoch stage, we return to the outer loop (Algorithm \ref{alg:OptimFull}). The resulting model $SDF_{res}$ undergoes sparsification, after which  its resolution is doubled (except for the final epoch). Finally, global redistancing is applied to $SDF_{res}$ so that the output model become a valid SDF (line 9 of Algorithm \ref{alg:OptimFull}).
 
 \subsection{Rendering and Gradient Evaluation}
 
@@ -177,6 +177,11 @@ Our reconstruction method employs the Sparse Brick Set (SBS) representation \cit
 
 In addition to the representation itself, our method utilizes two ray-surface intersection techniques proposed for SBS -- specifically, the Newton's method and an analytical approach. To correctly compute the gradient, we apply the relaxed boundary method \cite{RelaxBoundary}, adapted to these intersection techniques. Both, Newton's method and analytic approach compute ray-voxel intersections under the assumption that the SDF along the ray within the voxel can be represented as a cubic polynomial; the only difference between them lies in the root-finding procedure.
 We look for a point on the ray that is as close as possible to the surface. On the other hand, the key property of a relaxed boundary point is that it corresponds to a local minimum of the SDF along the ray. Therefore, the task of detecting such points within a voxel reduces to finding the corresponding root of a quadratic equation. However, when trilinear interpolation is used, the local minimum is often reached at the voxel boundaries, and these boundary cases are also handled separately.
+
+\Figure[t](topskip=0pt, botskip=0pt, midskip=0pt)[width=0.9\linewidth]{Resources/Graphic9c1.eps} {
+    Extrapolation step scheme, the yellow side of the brick is extrapolated from the neighbours' sides (green). a) search for neighboring blocks; b) extrapolation of side values from each neighbor.  
+    \label{figNeighborBricks}
+}
 
 The algorithm is implemented in C++ using Vulkan API without automatic differentiation; all gradients are computed analytically. To support an arbitrary number of samples per pixel, the shader responsible for rendering the optimized model and computing the boundary integral accumulates gradients every 16 samples, using an intermediate color estimate rather than waiting for the final pixel color to be calculated. This approach is necessitated by the fact that information about the intersected voxel must be stored for each sample, while the accuracy of the gradient estimate depends on the pixel color obtained after sampling. At the same time, the number of samples is user-defined and not known in advance. We assume that 16 samples are sufficient to produce a color close to the final value, and therefore store voxel information in a fixed-size stack.
 
@@ -186,9 +191,8 @@ After a gradient descent step, the updated distance values, strictly speaking, c
 
 Our global redistancing is the redistancing procedure for SBS structure. To ensure correct distance computation, an extrapolation step is introduced: for each brick face that does not adjoin another brick (i.e., lacks a direct neighbor), non-direct neighboring bricks are identified, and the distances for that face are extrapolated from the nearest face of those neighbors (see Fig. \ref{figNeighborBricks}). The minimum absolute values are then selected among the current and all computed distances. The redistancing procedure is parallelized across bricks.
 
-\Figure[t](topskip=0pt, botskip=0pt, midskip=0pt)[width=0.9\linewidth]{Resources/Graphic9c1.eps} {
-    Extrapolation step scheme, the yellow side of the brick is extrapolated from the neighbours' sides (green). a) search for neighboring blocks; b) extrapolation of side values from each neighbor.  
-    \label{figNeighborBricks}
+\Figure[h](topskip=0pt, botskip=0pt, midskip=0pt)[width=0.9\linewidth]{Resources/Graphic9a2.pdf} {
+    Global (left) and local (right) redistancing. Dots represent distance values; bricks are 3x3 values. Red (blue) dots are the values outside (inside) the object. The dashed line represents the surface. Arrows show the order of updating values. Local redistancing ignores the bricks without the surface. \label{figRedistTypes}
 }
 
 One of the advantages of voxel-based intersection search methods is that they are less sensitive to the accuracy of distance values than sphere tracing. As a result, a voxel can be safely ignored if all its distance values exceed a relaxed epsilon; in this case, neither an intersection point nor a relaxed boundary point can be found within it. Consequently, precise distance values within bricks that do not contain the surface are of limited importance; in particular, there is no need to recompute distances for such bricks.
@@ -198,10 +202,6 @@ Local redistancing is performed frequently, after each iteration of the method. 
 \subsection{Upsampling and Sparsification}
 
 When the optimization process converges within one epoch , grid upsampling (increasing of SDF resolution) is required to further improve the reconstruction quality. The final model quality depends directly on the number of epochs can be performed while maintaining a sufficiently high iteration speed and an acceptable data representation size. In the SBS approach, resolution is increased by introducing new distance values and subdividing each existing brick into eight smaller ones; each new brick contains the same number of distance samples as the original but represents a spatial region eight times smaller. 
-
-\Figure[h](topskip=0pt, botskip=0pt, midskip=0pt)[width=0.9\linewidth]{Resources/Graphic9a2.pdf} {
-    Global (left) and local (right) redistancing. Dots represent distance values; bricks are 3x3 values. Red (blue) dots are the values outside (inside) the object. The dashed line represents the surface. Arrows show the order of updating values. Local redistancing ignores the bricks without the surface. \label{figRedistTypes}
-}
 
 \begin{table}
     \centering
