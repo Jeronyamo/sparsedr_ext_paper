@@ -31,15 +31,16 @@
 
 \title{Differentiable Rendering of Sparse Signed Distance Functions}
 \author{\uppercase{Alexey Budak}\authorrefmark{1}, 
-\uppercase{Albert Garifullin}\authorrefmark{1}, 
-\uppercase{Vladimir Frolov}\authorrefmark{2}, AND
-\uppercase{Alexey Voloboy}\authorrefmark{1}}
+\uppercase{Albert Garifullin}\authorrefmark{2}, 
+\uppercase{Vladimir Frolov}\authorrefmark{1}, AND
+\uppercase{Alexey Voloboy}\authorrefmark{2}}
 
-\address[1]{Lomonosov Moscow State University, 119991 Moscow, Russia}
-\address[2]{Institute for Artificial Intelligence of Lomonosov Moscow State University (IAI MSU), 119192 Moscow, Russia}
+\address[1]{Institute for Artificial Intelligence of Lomonosov Moscow State University (IAI MSU), 119192 Moscow, Russia}
+\address[2]{Lomonosov Moscow State University, 119991 Moscow, Russia}
 
 % Add grants, funding, and acknowledgments here if applicable.
 % \tfootnote{This work was supported by ...}
+\tfootnote{The work of A. Garifullin and A. Voloboy was supported by The Ministry of Economic Development of the Russian Federation in accordance with the subsidy agreement (agreement identifier 000000C313925P4H0002; grant No 139-15-2025-012)}
 
 \markboth{Budak \headeretal: Differentiable Rendering of Sparse Signed Distance Functions}
 {Budak \headeretal: Differentiable Rendering of Sparse Signed Distance Functions}
@@ -372,10 +373,19 @@ Figure \ref{figExamples} shows reconstruction examples on models from the datase
 
 In this work, we propose a method for differentiable rendering of sparse SDFs. The conducted experiments demonstrate its potential for geometry reconstruction tasks. It should be noted that the current implementation does not include secondary rays and material reconstruction; however, the method's architecture does not preclude its extension to full path tracing. Incorporating this feature would require additional development and optimization effort, but the obtained results are promising and provide strong motivation for further research and refinement of the method.
 
+% In this work, we propose SparseDR, a method for differentiable rendering of sparse signed distance fields (SDFs). The experiments demonstrate that the proposed approach has strong potential for geometry reconstruction, achieving promising results while maintaining the efficiency benefits of sparse scene representations.
+
+% The current implementation is focused primarily on the reconstruction of scene geometry and does not yet account for secondary rays and material parameters. Nevertheless, the underlying architecture is not limited to direct illumination and can, in principle, be extended toward a fully differentiable path tracer.
+
+% An important direction for future work is therefore the integration of secondary rays and more complete light-transport simulation. This would enable the method to  improve reconstruction quality in scenes where indirect illumination significantly affects the observed images. Further research will also focus on jointly reconstructing light sources and material properties.
+
+% Although these extensions will require substantial additional development, the results obtained in this work provide a strong foundation for such research. They indicate that sparse SDF-based differentiable rendering can serve as a promising basis for more complete inverse-rendering systems that jointly recover geometry, materials, and illumination.
+
 % We also highlight the limitations of using MSE as a loss function. Figure \ref{LimPSNR} illustrates a reconstruction result that appears inadequate despite achieving a high PSNR score. This discrepancy stems from a well-known drawback of MSE, namely its inability to capture structural characteristics of images. In this regard, the use of DSSIM as an alternative loss function to replace MSE is considered.
 
-\section{Acknowledgments}
-This work was supported by The Ministry of Economic Development of the Russian Federation in accordance with the subsidy agreement (agreement identifier 000000C313925P4H0002; grant No 139-15-2025-012).
+% Note: acknowledgment here must be omitted in favor of footnote at the title page. 
+% \section{Acknowledgments}
+% This work was supported by The Ministry of Economic Development of the Russian Federation in accordance with the subsidy agreement (agreement identifier 000000C313925P4H0002; grant No 139-15-2025-012).
 
 \vspace{6pt}
 
