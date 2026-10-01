@@ -212,81 +212,74 @@ A sparsification step is also introduced: bricks are added and removed so that t
 
 \section{Experimental Results}
 
-This section consists of two parts: the first presents a comparison with the baseline method in terms of reconstruction time, quality, and the size of the resulting models; the second part is devoted to an ablation study of the proposed method. All experiments were conducted using an AMD Ryzen 9 7950X CPU and an NVIDIA GeForce RTX 4090 GPU.
+%This section consists of two parts: the first presents a comparison with the baseline method in terms of reconstruction time, quality, and the size of the resulting models; the second part is devoted to an ablation study of the proposed method. 
+All experiments were conducted using an AMD Ryzen 9 7950X CPU and an NVIDIA GeForce RTX 4090 GPU.
 
 \subsection{Comparison to baseline}
 
-% Сравнения представляют собой реконструкцию моделей в максимально равных условиях с последующим сопоставлением времени, точности реконструкции, а также размеров полученных представлений для каждой эпохи. Реализация метода релаксированной границы взята из официального репозитория \cite{RelaxRepo}.
+The comparisons involves reconstructing models under nearly identical conditions, followed by a comparison of reconstruction time, accuracy, and the sizes of the resulting representations for each epoch. The implementation of the relaxed boundary method was taken from the official repository \cite{RelaxRepo}.
 
-% Реконструкция велась на 24 ракурсах, равномерно распределённых на полусфере, разрешение изображений 1024*1024. В сцене два направленных источника света: (1,1,1) и (-1,-1,-1), а также ambient light. Размер батча 6. Hyperparameters, such as learning rate, Adam optimizer parameters, relaxed boundary width, взяты из конфигурационного файла в репозитории базового метода. Восстанавливались 12 моделей: 4 модели from Stanford 3D scans repository, Nefertiti scan, Utah teapot, а также сканы Artec3D: Buggy, Demogorgon, Doom, Helicopter, Pufferfish, Wheel.
-
-Comparisons consist of reconstructing models under maximally equal conditions, followed by comparing reconstruction time, accuracy, and the sizes of the resulting representations for each epoch. The implementation of the relaxed boundary method is taken from the official repository \cite{RelaxRepo}.
-
-Reconstruction was performed from 24 views uniformly distributed over a hemisphere, with image resolution 1024x1024. The scene contains two directional light sources at (1,1,1) and (-1,-1,-1), as well as ambient light. The batch size is 6. Hyperparameters, such as learning rate, Adam optimizer parameters, and relaxed boundary width, are taken from the configuration file in the base method's repository. Twelve models were reconstructed: four models from the Stanford 3D Scans Repository, the Nefertiti scan, the Utah teapot, and Artec3D scans: Buggy, Demogorgon, Doom, Helicopter, Pufferfish, and Wheel.
-
-
-\Figure[t](topskip=0pt, botskip=0pt, midskip=0pt)[width=0.9\textwidth]{Resources/ieee_acc_psnr_all.pdf} {
-    Average PSNR of reconstructed models for the baseline, our method with the same number of epochs (5 epochs), and our method for the same total reconstruction time (7 epochs).\label{figPSNR57}
-}
+Reconstruction was performed using 24 views uniformly distributed over a hemisphere, the image resolution was 1024x1024. The scene includes two directional light sources (with directions (1,1,1) and (-1,-1,-1)), and an ambient light. The batch size was 6. Hyperparameters, such as the learning rate, Adam optimizer parameters, and relaxed boundary width, wee taken from the configuration file in the baseline method's repository. Twelve models were reconstructed: four models from the Stanford 3D Scans Repository, a scan of the Nefertiti, the Utah Teapot, and scans from Artec3D: Buggy, Demogorgon, Doom, Helicopter, Pufferfish, and Wheel.
 
 \Figure[h](topskip=0pt, botskip=0pt, midskip=0pt)[width=0.9\linewidth]{Resources/ieee_acc_time_5.pdf} {
     Average iteration time for the epochs 1-5. For each epoch, left bar is the baseline, right bar is our method.
     \label{figTime5}
 }
 
-% ! Таблица: строки - модели; столбцы: , PSNR, время в минутах
+\Figure[t](topskip=0pt, botskip=0pt, midskip=0pt)[width=0.9\textwidth]{Resources/ieee_acc_psnr_all.pdf} {
+    Average PSNR of reconstructed models for the baseline (blue), our method with the same number of epochs (5 epochs, red), and our method for the same total reconstruction time (7 epochs, yellow).\label{figPSNR57}
+}
 
-% Базовый метод в нашей hardware конфигурации способен выполнить только 5 эпох (после чего Dr.JIT возвращает OOM error), в то время как наш метод выполняет 7 эпох за то же время. Поэтому в сравнении с базовым методом мы демонстрируем время для первых пяти эпох, а качество как для одинакового числа эпох, так и для одинакового времени выполнения.
+With the hardware configuration we used, the baseline method allows for only 5 epochs (after which Dr.JIT returns an out-of-memory error), whereas our method completes 7 epochs in the same amount of time. Therefore, we report execution times for the first five epochs, and the PSNR quality metric for both an equal number of epochs and equal actual runtime.
 
-% На Figure \ref{figTime5} представлено среднее по всем моделям время выполнения одной итерации для первых пяти эпох. По нему видно, что у SBS появляется зависимость времени рендера от размера модели; тем не менее, наш метод превосходит базовый на первых пяти эпохах. Отдельно следует отметить редистансинг: локальная версия на CPU оказалась быстрее, чем dense grid redistancing on GPU.
-Under our hardware configuration, the baseline method is able to perform only 5 epochs (after which Dr.JIT returns an OOM error), whereas our method completes 7 epochs in the same time. Therefore, in comparison with the baseline, we report runtime for the first five epochs, and quality both for an equal number of epochs and for equal wall-clock time.
+Figure \ref{figTime5} shows the average per-iteration execution time averaged over all models for the first five epochs. It can be seen that rendering time in our method depends on model size. Nevertheless, our method outperforms the baseline during the first five epochs, achieving up to a 10-fold increase in iteration speed. It is also worth noting that the local CPU-based redistancing version proves faster than redistancing on the dense grid using the GPU.
 
-Figure \ref{figTime5} shows the average per-iteration runtime over all models for the first five epochs. It can be seen that SBS's rendering time is dependant on model size; nevertheless, our method outperforms the baseline on the first five epochs, demonstrating the 3-10 times increased iteration speed. It is also worth noting redistancing: the local version on the CPU works faster than dense grid redistancing on the GPU.
-
-% Figure \ref{figPSNR57} показывает среднее по ракурсам значение PSNR для рендеров референса и реконструкции. Представлено три результата: работа базового метода (5 эпох), работа нашего метода также для 5 эпох, а также за то же время, которое работал базовый метод (7 эпох). Первые 6 моделей обладают достаточно гладкими поверхностями, поэтому наш метод показывает гораздо лучшую точность реконструкции за счёт более высокой детализации используемого представления. Последние 6 моделей отличаются рельефностью и обилием мелких деталей, поэтому на них разрыв в точности реконструкции между нашей методом и базовым, имеющим в своей реализации трассировку путей, уменьшается. Тем не менее, после расширения нашего метода мы ожидаем прирост качества реконструкции. Использование этих моделей в будущих сравнениях позволит нагляднее продемонстрировать прогресс и эффективность метода.
-Figure \ref{figPSNR57} shows the average PSNR over views for renders of the reference and the reconstruction. Three results are presented: the baseline method (5 epochs), our method also for 5 epochs, and our method for the same wall-clock time as the baseline (7 epochs). The first six models have relatively smooth surfaces, so our method achieves substantially higher reconstruction accuracy due to the finer detail of the representation used. The last six models are characterized by pronounced relief and an abundance of small details, which reduces the gap in reconstruction accuracy between our method and the baseline, which employs path tracing in its implementation. Nevertheless, after extending our method, we expect an improvement in reconstruction quality. Using these models in future comparisons will make the progress and effectiveness of the method more apparent.
-
+Figure \ref{figPSNR57} shows the view-averaged PSNR values for rendered images of reference objects and the reconstruction results. Data are presented for three variants: the baseline method (5 epochs), our method (also 5 epochs), and our method using the same real-time budget as the baseline (7 epochs). The first six models have relatively smooth surfaces, so our method achieves substantially higher reconstruction accuracy due to the greater level of detail provided by the representation used. The last six models are characterized by pronounced surface relief and abundant fine details; this reduces the gap in reconstruction accuracy between our method and the baseline, which employs a path tracing. 
+%Nevertheless, after extending our method, we expect an improvement in reconstruction quality. Using these models in future comparisons will make the progress and effectiveness of the method more apparent.
 
 \begin{table}
     \centering
-    \begin{tabular}{ccccccc}
+    \caption{The model sizes for the Relaxed Boundary and SparseDR (Ours) methods, epochs 3-7. All values are in MBs. The size of Relaxed Boundary's dense grid is the same for all models. Asterisks denote theoretical values, as we could not acquire them on our hardware (out-of-memory error). }
+        \begin{tabular}{ccccccc}
         \toprule
-        Representation & $128^3$ & $256^3$ & $512^3$ & $1024^3$ & $2048^3$  \\
+        Epoch & 3 & 4 & 5 & 6 & 7  \\
+%        \midrule[\heavyrulewidth] 
+        SDF representation & $128^3$ & $256^3$ & $512^3$ & $1024^3$ & $2048^3$  \\
         \midrule[\heavyrulewidth]
-        Baseline (Dense grid) & 8 & 64 & 512 & 4096* & 32768* \\
+        Relaxed Boundary: & & &  & & \\
+         any model & 8 & 64 & 512 & 4096* & 32768* \\
         \cmidrule(lr){1-6}
-        Ours (Armadillo)      &          8.5 & \textbf{31.1} & \textbf{126.2} & \textbf{ 514.2} & \textbf{1074.2}  \\
+        SparseDR (Ours): & & &  & & \\
+%        \cmidrule(lr){1-1}  \cmidrule(lr){2-6}
+        Armadillo      &          8.5 & 31.1 & 126.2 & 514.2 & 1074.2  \\
         \cmidrule(lr){1-1}  \cmidrule(lr){2-6}
-        Ours (Bunny)          &         11.4 & \textbf{49.5} & \textbf{195.1} & \textbf{ 775.3} & \textbf{3093.8}  \\
+        Bunny          &         11.4 & 49.5 & 195.1 & 775.3 & 3093.8  \\
         \cmidrule(lr){1-1}  \cmidrule(lr){2-6}
-        Ours (Dragon)         & \textbf{4.8} & \textbf{17.1} & \textbf{ 67.9} & \textbf{ 275.6} & \textbf{1154.6}  \\
+        Dragon         & 4.8 & 17.1 & 67.9 & 275.6 & 1154.6  \\
         \cmidrule(lr){1-1}  \cmidrule(lr){2-6}
-        Ours (Happy)          & \textbf{4.9} & \textbf{20.4} & \textbf{ 88.5} & \textbf{ 373.9} & \textbf{1562.8}  \\
+        Happy          & 4.9 & 20.4 & 88.5 & 373.9 & 1562.8  \\
         \cmidrule(lr){1-1}  \cmidrule(lr){2-6}
-        Ours (Nefertiti)      & \textbf{7.3} & \textbf{29.0} & \textbf{114.1} & \textbf{ 459.0} & \textbf{1845.3}  \\
+        Nefertiti      & 7.3 & 29.0 & 114.1 & 459.0 & 1845.3  \\
         \cmidrule(lr){1-1}  \cmidrule(lr){2-6}
-        Ours (Teapot)         & \textbf{6.3} & \textbf{23.6} & \textbf{ 96.4} & \textbf{ 392.1} & \textbf{1597.7}  \\
+        Teapot         & 6.3 & 23.6 & 96.4 & 392.1 & 1597.7  \\
         \cmidrule(lr){1-1}  \cmidrule(lr){2-6}
-        Ours (Buggy)          & \textbf{7.5} & \textbf{31.6} & \textbf{158.6} & \textbf{ 852.8} & \textbf{4068.1}  \\
+        Buggy          & 7.5 & 31.6 & 158.6 & 852.8 & 4068.1  \\
         \cmidrule(lr){1-1}  \cmidrule(lr){2-6}
-        Ours (Demogorgon)     &         10.5 & \textbf{41.9} & \textbf{185.8} & \textbf{ 923.6} & \textbf{4487.9}  \\
+        Demogorgon    &     10.5 & 41.9 & 185.8 & 923.6 & 4487.9  \\
         \cmidrule(lr){1-1}  \cmidrule(lr){2-6}
-        Ours (Doom)           &          8.9 & \textbf{35.5} & \textbf{160.6} & \textbf{ 777.3} & \textbf{3640.7}  \\
+        Doom         &     8.9 & 35.5 & 160.6 & 777.3 & 3640.7  \\
         \cmidrule(lr){1-1}  \cmidrule(lr){2-6}
-        Ours (Helicopter)     & \textbf{3.4} & \textbf{12.2} & \textbf{ 42.7} & \textbf{ 175.9} & \textbf{ 793.8}  \\
+        Helicopter     & 3.4 & 12.2 & 42.7 & 175.9 & 793.8  \\
         \cmidrule(lr){1-1}  \cmidrule(lr){2-6}
-        Ours (Pufferfish)     &          8.1 & \textbf{42.6} & \textbf{232.6} & \textbf{1099.7} & \textbf{5056.0}  \\
+        Pufferfish    &  8.1 & 42.6 & 232.6 & 1099.7 & 5056.0  \\
         \cmidrule(lr){1-1}  \cmidrule(lr){2-6}
-        Ours (Wheel)          & \textbf{7.2} & \textbf{29.6} & \textbf{142.6} & \textbf{ 734.0} & \textbf{3709.6}  \\
+        Wheel          & 7.2 & 29.6 & 142.6 & 734.0 & 3709.6  \\
         \bottomrule
     \end{tabular}
-    \caption{The model sizes for the Relaxed Boundary and SparseDR methods, epochs 3-7. All values are in MBs. Asterisks denote theoretical values, as we could not acquire them on our hardware (OOM in Dr. JIT). For the baseline method, the grid size is reported, whereas for our method we report the combined size of the SBS and its BVH.
-    }
     \label{tab:comp_size}
 \end{table}
 
-% В Таблице \ref{tab:comp_size} приведены размеры моделей, полученных для каждой модели на эпохах 3-7. Размер SDF сетки на каждой эпохе одинаков для всех моделей, поэтому они указаны один раз в верхней строке. В базовом методе в результате апсемплинга размер плотной сетки увеличивается в 8 раз от эпохи к эпохе. Благодаря использованию разреженной структуры данных, размер всех моделей, полученных нашим методом, меньше размера грида, начиная с четвёртой эпохи. Кроме того, размер модели после апсемплинга приблизительно в 4 раза больше исходной, так как модель хранит только дистанции у поверхности. Таким образом, рост размера моделей в нашем методе на порядок меньше, чем в базовом.
-Table \ref{tab:comp_size} reports the sizes of the models obtained for each input model at epochs 3-7. The SDF grid size is the same for all models at each epoch, so it is listed once in the top row. In the baseline method, as a result of upsampling, the dense grid size increases by a factor of 8 from epoch to epoch. Thanks to the use of a sparse data structure, the size of all models produced by our method is smaller than the grid size starting from the fourth epoch. Moreover, the model size after upsampling is approximately 4 times the original size, since the model stores distances only near the surface. Thus, the growth in model size in our method is an order of magnitude smaller than in the baseline.
+Table \ref{tab:comp_size} reports the sizes of the models obtained for input models across epochs 3-7. The SDF grid size is identical for all models at each epoch; therefore, it is specified only once in the top row. For the baseline method, the grid size is reported, whereas for our method we report the combined size of the SBS representation and its BVH tree. In the baseline method, upsampling causes the dense grid size to increase eightfold when transitioning from one epoch to the next. The dense grid size (baseline) is the same for any model, whereas the sizes of our representation are different for the different models. Due to the use of a sparse data structure, the size of all models generated by our method is smaller than the grid size starting from the fourth epoch. Moreover, the model size after upsampling is approximately four times the initial size, since the model stores distance values only near the surface. Thus, the rate of model size growth in our method is an order of magnitude lower than in the baseline method.
 
 \subsection{Ablation study}
 
