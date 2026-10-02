@@ -65,7 +65,7 @@ computer vision, 3D reconstruction, differentiable rendering, signed distance fu
 
 In recent years, Signed Distance Functions (SDFs) become widely used in 3D reconstruction \cite{ref-lin-2020,ref-sommer-2022,ref-slavcheva-2016} and differentiable rendering \cite{DRSDF2022,RelaxBoundary}. The smooth and continuous representation of surfaces provided by the SDFs is the main reason behind this popularity. This property is also useful for the inverse CAD design problem \cite{invCAD1,invCAD2}, where the representation must be differentiable with respect to the model parameters. When modeling real-world objects, it is often unnecessary to compute SDF values throughout the entire 3D space. The primary interest lies in the thin region surrounding the surface, specifically, in the area where the absolute value of the SDF does not exceed a certain threshold distance. In \cite{RelaxBoundary}, this region is termed the "relaxed boundary." Sparse SDFs store and process data only within such regions.
 
-In this paper, we propose a differentiable rendering method for sparse SDF representations. Our work builds upon the relaxed boundary approach~\cite{RelaxBoundary}, yet we have redesigned every stage of the optimization algorithm. To address the high computational cost of the redistancing procedure, we propose an approach that outperforms the existing algorithm in speed and memory consumption. This procedure significantly affects optimization time, as it is executed at each optimization step to update values following distance changes; since the grid ceases to represent a valid distance function, all distance values at the grid nodes must be recalculated. Although the ideas used in this work were presented at the IJCAI'2026 conference \cite{ijcai2026}, the results reported in this paper are significantly expanded and advanced. In particular, the main algorithms were optimized, increasing the speedup of the reconstruction time by a factor of 2 to 3.5. The size of the test dataset was doubled. Additional experiments and comparative studies were conducted, including an ablation study that was not presented at the conference.
+In this paper, we propose a differentiable rendering method for sparse SDF representations. Our work builds upon the relaxed boundary approach~\cite{RelaxBoundary}, yet we have redesigned every stage of the optimization algorithm. To address the high computational cost of the redistancing procedure, we propose an approach that outperforms the existing algorithm in speed and memory consumption. This procedure significantly affects optimization time, as it is executed at each optimization step to update values following distance changes; since the grid ceases to represent a valid distance function, all distance values at the grid nodes must be recalculated. Although the ideas used in this work were presented at the IJCAI'2026 conference \cite{ijcai2026}, the results reported in this paper are significantly expanded and advanced. In particular, the main algorithms were optimized, providing 2–4-fold increase in reconstruction speed. The size of the test dataset was doubled. Additional experiments and comparative studies were conducted, including an ablation study that was not presented at the conference.
 
 The main contributions of this work are as follows:
 
@@ -334,7 +334,7 @@ Figure \ref{figExamples} demonstrates examples of model reconstructions from the
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Conclusion and Future Work}
 
-In this work, we propose SparseDR, an efficient geometry reconstruction method based on the differentiable rendering of sparse signed distance functions (SDFs). Our method achieves high accuracy through the high effective resolution of the representation while maintaining a controlled memory footprint via sparse data storage. We demonstrate that sparse SDF representations can serve as a viable geometric representation for reconstruction applications using ray-traced rendering, enabling fast ray-traced visualization in CAD systems and interactive 3D applications.
+In this work, we propose SparseDR, an efficient geometry reconstruction method based on the differentiable rendering of sparse signed distance functions (SDFs). Our method achieves high accuracy through the effective resolution of the representation while maintaining a controlled memory footprint via sparse data storage. We demonstrate that sparse SDF representations can serve as a viable geometric representation for reconstruction applications using ray-traced rendering, enabling fast ray-traced visualization in CAD systems and interactive 3D applications.
 
 The current implementation focuses on geometry reconstruction and direct illumination. It does not yet model secondary rays or estimate material properties. However, the underlying architecture allows for extension into a full-fledged differentiable path tracer. Future work will include support for secondary rays and more comprehensive light transport simulation to improve reconstruction quality in scenes where indirect illumination noticeably influences the final image. We also intend to implement the joint reconstruction of geometry, light sources, and material properties. The present results show that sparse SDF-based differentiable rendering is a suitable foundation for inverse rendering systems that recover geometry, materials, and lighting parameters.
 
@@ -346,83 +346,90 @@ The current implementation focuses on geometry reconstruction and direct illumin
 
 
 \begin{thebibliography}{00}
+
 \bibitem{ref-lin-2020} 
 C. H. Lin, C. Wang, and S. Lucey, ``SDF-SRN: Learning Signed Distance 3D Object Reconstruction from static Images,'' \textit{Adv. Neural Inf. Process. Syst.}, vol. 33, pp.~11453--11464, 2020.
 
 \bibitem{ref-sommer-2022} 
-C. Sommer, L. Sang, D. Schubert, and D. Cremers, Gradient-SDF: A Semi-Implicit Surface Representation for 3D Reconstruction. \textit{In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR)}, New Orleans, LA, USA, 2022. 10.1109/CVPR52688.2022.00618
+C. Sommer, L. Sang, D. Schubert, and D. Cremers, Gradient-SDF: A Semi-Implicit Surface Representation for 3D Reconstruction. In \textit{Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR)}, New Orleans, LA, USA, 2022. 10.1109/CVPR52688.2022.00618
 
 \bibitem{ref-slavcheva-2016} 
-M. Slavcheva, W. Kehl, N. Navab, and S. Ilic, SDF-2-SDF: Highly Accurate 3D Object Reconstruction. \textit{In Proceedings of the European Conference on Computer Vision (ECCV)}, Amsterdam, The Netherlands, pp. 680--696, 2016. 10.1007/978-3-319-46448-0\_41
+M. Slavcheva, W. Kehl, N. Navab, and S. Ilic, SDF-2-SDF: Highly Accurate 3D Object Reconstruction. In \textit{Proceedings of the European Conference on Computer Vision (ECCV)}, Amsterdam, The Netherlands, pp. 680--696, 2016. 10.1007/978-3-319-46448-0\_41
 
 \bibitem{DRSDF2022} 
 D. Vicini, S. Speierer, and W. Jakob, ``Differentiable signed distance function rendering,'' \textit{ACM Trans. Graph.}, vol. 41, no. 4, 125, pp.~1--18, 2022. (TOG) 10.1145/3528223.3530139
 
+\bibitem{RelaxBoundary}
+Z. Wang, X. Deng, Z. Zhang, W. Jakob, and S. Marschner. A Simple Approach to Differentiable Rendering of SDFs. In \textit{Proc. of SIGGRAPH Asia 2024 Conference Papers (SA '24)}. New York, NY, USA, 119, pp. 1-11, 2024. 10.1145/3680528.3687573.
+
 \bibitem{invCAD1} 
-Z. Zhang, M. Zhao, Z. Shen, Y. Wang, X. Jia, and D.-M. Yan, ``Interactive reverse engineering of CAD models,'' \textit{Comput. Aided Geom. Des.}, vol. 111, p.~102339, 2024, doi: 10.1016/j.cagd.2024.102339
+Z. Zhang, M. Zhao, Z. Shen, Y. Wang, X. Jia, and D.-M. Yan, ``Interactive reverse engineering of CAD models,'' \textit{Comput. Aided Geom. Des.}, vol. 111, p.~102339, 2024, 10.1016/j.cagd.2024.102339
 
 \bibitem{invCAD2} 
-S. Kabisov, V. Kirichuk, A. Volkov, M. Barannikov, G. Savrasov, A. Konushin, et al., CADreasoner: Iterative program editing for CAD reverse engineering. \textit{In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition}, pp. 6143-6153, 2026.
-
-\bibitem{RelaxBoundary}
-Zichen Wang, Xi Deng, Ziyi Zhang, Wenzel Jakob, and Steve Marschner. (2024). A Simple Approach to Differentiable Rendering of SDFs. \textit{SIGGRAPH Asia 2024 Conference Papers (SA '24)}. Association for Computing Machinery, New York, NY, USA, Article 119, 1-11. doi: 10.1145/3680528.3687573.
-
-\bibitem{RelaxRepo}
-Zichen Wang. (2024). A Simple Approach to Differentiable Rendering of SDFs: official repository. URL: https://github.com/zichenwang01/relaxed-boundary/
+S. Kabisov, V. Kirichuk, A. Volkov, M. Barannikov, G. Savrasov, A. Konushin, et al., CADreasoner: Iterative program editing for CAD reverse engineering. In \textit{Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition}, pp. 6143-6153, 2026.
 
 \bibitem{ijcai2026}
-A. Budak, A. Garifullin, and V. Frolov. SparseDR: Differentiable Rendering of Sparse Signed Distance Fields. \textit{In Proceedings of the 35th International Joint Conference on Artificial Intelligence. Demo track}. pp.~8371-8374. 10.24963/ijcai.2026/959
+A. Budak, A. Garifullin, and V. Frolov. SparseDR: Differentiable Rendering of Sparse Signed Distance Fields. In \textit{Proceedings of the 35th International Joint Conference on Artificial Intelligence. Demo track}. pp.~8371-8374, 2026. 10.24963/ijcai.2026/959
 
 \bibitem{NeRF}
-Ben Mildenhall, Pratul P. Srinivasan, Matthew Tancik, Jonathan T. Barron, Ravi Ramamoorthi, and Ren Ng. (2021). NeRF: representing scenes as neural radiance fields for view synthesis. \textit{Commun. ACM}, 65, 1 (January 2022), 99-106. doi: 10.1145/3503250.
-
-\bibitem{3DGS}
-Bernhard Kerbl, Georgios Kopanas, Thomas Leimkuehler, and George Drettakis. (2023). 3D Gaussian Splatting for Real-Time Radiance Field Rendering. \textit{ACM Trans. Graph.}, 42, 4, Article 139 (August 2023), 14 pages. doi: 10.1145/3592433.
-
-\bibitem{2DGS}
-Binbin Huang, Zehao Yu, Anpei Chen, Andreas Geiger, and Shenghua Gao. (2024). 2D Gaussian Splatting for Geometrically Accurate Radiance Fields. \textit{ACM SIGGRAPH 2024 Conference Papers (SIGGRAPH '24)}, Association for Computing Machinery, New York, NY, USA, Article 32, 1-11. doi: 10.1145/3641519.3657428.
+B. Mildenhall, P. Srinivasan, M. Tancik, J. T. Barron, R. Ramamoorthi, and R. Ng. NeRF: representing scenes as neural radiance fields for view synthesis. \textit{Commun. ACM}, vol. 65, no. 1, pp. 99--106, 2022. 10.1145/3503250.
 
 \bibitem{NeUS2}
-Y. Wang, Q. Han, M. Habermann, K. Daniilidis, C. Theobalt and L. Liu. (2023). NeuS2: Fast Learning of Neural Implicit Surfaces for Multi-view Reconstruction. \textit{2023 IEEE/CVF International Conference on Computer Vision (ICCV)}, Paris, France, 2023, pp. 3272-3283, doi: 10.1109/ICCV51070.2023.00305.
+Y. Wang, Q. Han, M. Habermann, K. Daniilidis, C. Theobalt and L. Liu. NeuS2: Fast Learning of Neural Implicit Surfaces for Multi-view Reconstruction. In \textit{Proc. of IEEE/CVF International Conference on Computer Vision (ICCV)}, Paris, France, pp. 3272-3283, 2023. 10.1109/ICCV51070.2023.00305.
+
+%-----------10-------------
 
 \bibitem{NeuAngelo}
-Z. Li et al. (2023). NeuralAngelo: High-Fidelity Neural Surface Reconstruction. \textit{2023 IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR)}, Vancouver, BC, Canada, 2023, pp. 8456-8465, doi: 10.1109/CVPR52729.2023.00817.
+Z. Li et al. NeuralAngelo: High-Fidelity Neural Surface Reconstruction. In \textit{Proc. of IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR)}, Vancouver, BC, Canada, pp. 8456-8465, 2023. 10.1109/CVPR52729.2023.00817.
+
+\bibitem{3DGS}
+B. Kerbl, G. Kopanas, T. Leimkuehler, and G. Drettakis. 3D Gaussian Splatting for Real-Time Radiance Field Rendering. \textit{ACM Trans. Graph.}, vol. 42, no. 4, 139, pp. 1--14, 2023. 10.1145/3592433.
+
+\bibitem{2DGS}
+B. Huang, Z. Yu, A. Chen, A. Geiger, and S. Gao. 2D Gaussian Splatting for Geometrically Accurate Radiance Fields. In \textit{Proc, of ACM SIGGRAPH 2024. Conference Papers}, New York, NY, USA, 32, pp. 1-11, 2024. 10.1145/3641519.3657428.
 
 \bibitem{MeshS}
-Held, Jan and Son, Sanghyun and Vandeghen, Renaud and Rebain, Daniel and Gadelha, Matheus and Zhou, Yi and Cioppa, Anthony and Lin, Ming C. and Van Droogenbroeck, Marc and Tagliasacchi, Andrea. (2026). MeshSplatting: Differentiable Rendering with Opaque Meshes. \textit{Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR)}, 2026, pp. 7320-7329.
-
-\bibitem{SuGaR}
-Gu\'edon, A., \& Lepetit, V. (2024). SuGaR: Surface-Aligned Gaussian Splatting for Efficient 3D Mesh Reconstruction and High-Quality Mesh Rendering. \textit{Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR)}, 5354--5363.
+J. Held, S. Son, R. Vandeghen, D. Rebain, M. Gadelha, Y. Zhou, et al. MeshSplatting: Differentiable Rendering with Opaque Meshes. In \textit{Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR)}, pp. 7320-7329, 2026.
 
 \bibitem{BakedSDF}
-Lior Yariv, Peter Hedman, Christian Reiser, Dor Verbin, Pratul P. Srinivasan, Richard Szeliski, Jonathan T. Barron, and Ben Mildenhall. (2023). BakedSDF: Meshing Neural SDFs for Real-Time View Synthesis. \textit{ACM SIGGRAPH 2023 Conference Proceedings (SIGGRAPH '23)}, Association for Computing Machinery, New York, NY, USA, Article 46, pp. 1-9. doi: 10.1145/3588432.3591536.
+L. Yariv, P. Hedman, C. Reiser, D. Verbin, P. P. Srinivasan, R. Szeliski, et al. BakedSDF: Meshing Neural SDFs for Real-Time View Synthesis. In \textit{ACM SIGGRAPH 2023 Conference Proceedings (SIGGRAPH '23)}, New York, NY, USA, 46, pp. 1--9, 2023. 10.1145/3588432.3591536.
+
+%-----------15-------------
 
 \bibitem{NeRFMeshing}
-Rakotosaona, M. -J., Manhardt, F., Arroyo, D. M., Niemeyer, M., Kundu, A., \& Tombari, F. (2024). NeRFMeshing: Distilling Neural Radiance Fields into Geometrically-Accurate 3D Meshes. \textit{2024 International Conference on 3D Vision (3DV)}, Davos, Switzerland, 2024, pp. 1156-1165, doi: 10.1109/3DV62453.2024.00093.
+M. -J. Rakotosaona, F. Manhardt, D. M. Arroyo, M. Niemeyer, A. Kundu, and F. Tombari. NeRFMeshing: Distilling Neural Radiance Fields into Geometrically-Accurate 3D Meshes. In \textit{Proc. of International Conference on 3D Vision (3DV)}, Davos, Switzerland, pp. 1156--1165, 2024. 10.1109/3DV62453.2024.00093.
+
+\bibitem{SuGaR}
+A. Gu\'edon, and V. Lepetit. SuGaR: Surface-Aligned Gaussian Splatting for Efficient 3D Mesh Reconstruction and High-Quality Mesh Rendering. In \textit{Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR)}, Seattle, Washington, USA, pp. 5354--5363, 2024.
 
 \bibitem{EdgeSampling}
-Tzu-Mao Li, Miika Aittala, Frédo Durand, and Jaakko Lehtinen. (2018). Differentiable Monte Carlo ray tracing through edge sampling. \textit{ACM Trans. Graph.}, 37, 6, Article 222 (December 2018), 11 pages. doi: 10.1145/3272127.3275109.
+T.-M. Li, M. Aittala, F. Durand, and J. Lehtinen. ``Differentiable Monte Carlo ray tracing through edge sampling.'' \textit{ACM Trans. Graph.}, vol. 37, no. 6, 222, pp. 1--11, 2018. 10.1145/3272127.3275109.
 
 \bibitem{Reparam}
-Guillaume Loubet, Nicolas Holzschuch, and Wenzel Jakob. (2019). Reparameterizing discontinuous integrands for differentiable rendering. \textit{ACM Trans. Graph.}, 38, 6, Article 228 (December 2019), 14 pages. doi: 10.1145/3355089.3356510.
+G. Loubet, N. Holzschuch, and W. Jakob. ``Reparameterizing discontinuous integrands for differentiable rendering.'' \textit{ACM Trans. Graph.}, vol. 38, no. 6, 228, pp. 1--14, 2019. 10.1145/3355089.3356510.
 
 \bibitem{WAS}
-Sai Praveen Bangaru, Tzu-Mao Li, and Frédo Durand. (2020). Unbiased warped-area sampling for differentiable rendering. \textit{ACM Trans. Graph.}, 39, 6, Article 245 (December 2020), 18 pages. doi: 10.1145/3414685.3417833.
+S. P. Bangaru, T.-M. Li, and F. Durand. ``Unbiased warped-area sampling for differentiable rendering.'' \textit{ACM Trans. Graph.}, vol. 39, no. 6, 245, pp. 1--18, 2020. 10.1145/3414685.3417833.
+
+%-----------20-------------
 
 \bibitem{Nicolet}
-Baptiste Nicolet, Alec Jacobson, and Wenzel Jakob. (2021). Large steps in inverse rendering of geometry. \textit{ACM Trans. Graph.}. 40, 6, Article 248 (December 2021), 13 pages. doi: 10.1145/3478513.3480501.
-
-\bibitem{DRSDF}
-Delio Vicini, Sébastien Speierer, and Wenzel Jakob. 2022. Differentiable signed distance function rendering. \textit{ACM Trans. Graph.}, 41, 4, Article 125 (July 2022), 18 pages. doi: 10.1145/3528223.3530139.
-
-\bibitem{NeuDRSDF}
-Sai Praveen Bangaru, Michael Gharbi, Fujun Luan, Tzu-Mao Li, Kalyan Sunkavalli, Milos Hasan, Sai Bi, Zexiang Xu, Gilbert Bernstein, and Fredo Durand. (2022). Differentiable Rendering of Neural SDFs through Reparameterization. \textit{SIGGRAPH Asia 2022 Conference Papers (SA '22)}. Association for Computing Machinery, New York, NY, USA, Article 5, 1-9. doi: 10.1145/3550469.3555397.
+B. Nicolet, A. Jacobson, and W. Jakob. ``Large steps in inverse rendering of geometry.'' \textit{ACM Trans. Graph.}. vol. 40, no. 6, 248, pp. 1--13, 2021. 10.1145/3478513.3480501.
 
 \bibitem{HanssonSoderlund}
-Herman Hansson-Söderlund, Alex Evans, and Tomas Akenine-Möller. (2022). Ray Tracing of Signed Distance Function Grids. \textit{Journal of Computer Graphics Techniques (JCGT)}, vol. 11, no. 3, 94-113, 2022.
+H. Hansson-Söderlund, A. Evans, and T. Akenine-Möller. ``Ray Tracing of Signed Distance Function Grids.'' \textit{Journal of Computer Graphics Techniques (JCGT)}, vol. 11, no. 3, pp. 94-113, 2022.
+
+\bibitem{DRSDF}
+D. Vicini, S. Speierer, and W. Jakob. ``Differentiable signed distance function rendering.'' \textit{ACM Trans. Graph.}, vol. 41, no. 4, 125, pp. 1--18, 2022. 10.1145/3528223.3530139.
+
+\bibitem{NeuDRSDF}
+S. P. Bangaru, M. Gharbi, F. Luan, T.-M. Li, K. Sunkavalli, M. Hasan, et al. Differentiable Rendering of Neural SDFs through Reparameterization. In \textit{Proc. SIGGRAPH Asia 2022 Conference Papers (SA '22)}. New York, NY, USA, 5, pp. 1--9, 2022. 10.1145/3550469.3555397.
 
 \bibitem{RedistFSM}
-Miles Detrixhe, Frédéric Gibou, Chohong Min. (2013). A parallel fast sweeping method for the Eikonal equation. \textit{Journal of Computational Physics}, Volume 237, 2013, Pages 46-55, ISSN 0021-9991, doi: 10.1016/j.jcp.2012.11.042.
+M. Detrixhe, F. Gibou, and C. Min. ``A parallel fast sweeping method for the Eikonal equation.'' \textit{Journal of Computational Physics}, vol. 237, pp. 46--55, 2013. 10.1016/j.jcp.2012.11.042.
+
+\bibitem{RelaxRepo}
+Z. Wang. A Simple Approach to Differentiable Rendering of SDFs: official repository. [Online] Available: https://github.com/zichenwang01/relaxed-boundary/, 2024. 10.1145/3680528.3687573
 
 \end{thebibliography}
 
