@@ -1,0 +1,462 @@
+\documentclass{ieeeaccess}
+%Adjusted 05/13/2026 at the byline author names
+\usepackage{cite}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{algorithm}
+\usepackage{algorithmic}
+\usepackage{graphicx}
+\usepackage{textcomp}
+\usepackage{booktabs}
+
+\usepackage{bm}
+\makeatletter
+\AtBeginDocument{\DeclareMathVersion{bold}
+\SetSymbolFont{operators}{bold}{T1}{times}{b}{n}
+\SetSymbolFont{NewLetters}{bold}{T1}{times}{b}{it}
+\SetMathAlphabet{\mathrm}{bold}{T1}{times}{b}{n}
+\SetMathAlphabet{\mathit}{bold}{T1}{times}{b}{it}
+\SetMathAlphabet{\mathbf}{bold}{T1}{times}{b}{n}
+\SetMathAlphabet{\mathtt}{bold}{OT1}{pcr}{b}{n}
+\SetSymbolFont{symbols}{bold}{OMS}{cmsy}{b}{n}
+\renewcommand\boldmath{\@nomath\boldmath\mathversion{bold}}}
+\makeatother
+
+\def\BibTeX{{\rm B\kern-.05em{\sc i\kern-.025em b}\kern-.08em
+    T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
+
+\begin{document}
+\history{Date of publication xxxx 00, 0000, date of current version xxxx 00, 0000.}
+% DOI is assigned by IEEE after acceptance.
+\doi{10.1109/ACCESS.XXXX.XXXXXXX}
+
+\title{Differentiable Rendering of Sparse Signed Distance Functions}
+\author{\uppercase{Alexey Budak}\authorrefmark{1}, 
+\uppercase{Albert Garifullin}\authorrefmark{2}, 
+\uppercase{Vladimir Frolov}\authorrefmark{1}, AND
+\uppercase{Alexey Voloboy}\authorrefmark{2}}
+
+\address[1]{Institute for Artificial Intelligence of Lomonosov Moscow State University (IAI MSU), 119192 Moscow, Russia}
+\address[2]{Lomonosov Moscow State University, 119991 Moscow, Russia}
+
+% Add grants, funding, and acknowledgments here if applicable.
+% \tfootnote{This work was supported by ...}
+\tfootnote{The work of A. Garifullin and A. Voloboy was supported by The Ministry of Economic Development of the Russian Federation in accordance with the subsidy agreement (agreement identifier 000000C313925P4H0002; grant No 139-15-2025-012)}
+
+\markboth{Budak \headeretal: Differentiable Rendering of Sparse Signed Distance Functions}
+{Budak \headeretal: Differentiable Rendering of Sparse Signed Distance Functions}
+
+\corresp{Corresponding author: Alexey Budak (e-mail: alexey.budak@graphics.cs.msu.ru).}
+
+\begin{abstract}
+3D reconstruction is a fundamental problem in computer vision and computer graphics. Differentiable physically based rendering is an effective approach to this problem, enabling reconstruction via gradient-based optimization. It allows for the simultaneous recovery of both the geometry and material properties of the scene objects. State-of-the-art methods in this category employ signed distance functions (SDFs), a flexible representation well-suited for geometry reconstruction. However, existing SDF-based methods typically rely on dense SDF grids, resulting in high memory consumption, slow ray traversal via sphere tracing, and a computationally expensive redistancing step that requires propagating updated SDF values across the entire grid. We propose a method that addresses these challenges by leveraging a Sparse Brick Set representation and Newton's method for ray-surface intersection. Two new variants of the redistancing algorithm have been developed for sparse SDF representations; one of them is adapted specifically to the requirements of differentiable rendering. The proposed method overcomes the aforementioned limitations, improves reconstruction speed and quality, and reduces the growth of model size during optimization by an order of magnitude.
+\end{abstract}
+
+% TODO: check with IEEE Thesaurus
+\begin{keywords}
+computer vision, 3D reconstruction, differentiable rendering, signed distance function.
+\end{keywords}
+
+\titlepgskip=-21pt
+\maketitle
+
+\section{Introduction}
+
+3D reconstruction is a key challenge in computer vision, aimed at determining the parameters of real-world objects or scenes from images, video recordings, or sensor data. It is closely related to inverse rendering. While forward rendering involves generating 2D images from a 3D scene, the goal of inverse rendering is to reconstruct a scene from a set of images assumed to be produced under a specific rendering process. Significant progress has been made in this area over the past decade, driven by the rapid development of differentiable rendering. Differentiable rendering assumes that all stages of the rendering pipeline are differentiable, thereby enabling the use of gradient-based optimization for scene reconstruction. Consequently, gradients of the loss function -- calculated based on the difference between the reconstructed and reference images -- can be propagated to the parameters being optimized (such as material properties and geometry), allowing them to converge toward the parameters of the reference scene during the optimization process.
+
+In recent years, Signed Distance Functions (SDFs) become widely used in 3D reconstruction \cite{ref-lin-2020,ref-sommer-2022,ref-slavcheva-2016} and differentiable rendering \cite{DRSDF2022,RelaxBoundary}. The smooth and continuous representation of surfaces provided by the SDFs is the main reason behind this popularity. This property is also useful for the inverse CAD design problem \cite{invCAD1,invCAD2}, where the representation must be differentiable with respect to the model parameters. When modeling real-world objects, it is often unnecessary to compute SDF values throughout the entire 3D space. The primary interest lies in the thin region surrounding the surface, specifically, in the area where the absolute value of the SDF does not exceed a certain threshold distance. In \cite{RelaxBoundary}, this region is termed the "relaxed boundary." Sparse SDFs store and process data only within such regions.
+
+In this paper, we propose a differentiable rendering method for sparse SDF representations. Our work builds upon the relaxed boundary approach~\cite{RelaxBoundary}, yet we have redesigned every stage of the optimization algorithm. To address the high computational cost of the redistancing procedure, we propose an approach that outperforms the existing algorithm in speed and memory consumption. This procedure significantly affects optimization time, as it is executed at each optimization step to update values following distance changes; since the grid ceases to represent a valid distance function, all distance values at the grid nodes must be recalculated. Although the ideas used in this work were presented at the IJCAI'2026 conference \cite{ijcai2026}, the results reported in this paper are significantly expanded and advanced. In particular, the main algorithms were optimized, providing 2–4-fold increase in reconstruction speed. The size of the test dataset was doubled. Additional experiments and comparative studies were conducted, including an ablation study that was not presented at the conference.
+
+The main contributions of this work are as follows:
+
+\begin{itemize}
+    \item A differentiable rendering algorithm for sparse SDF representations that outperforms the baseline method in speed and reduces the growth rate of the optimized model's size by an order of magnitude.
+    \item An algorithm for distance recalculation in sparse SDF representations (redistancing algorithm); its local version achieves an order-of-magnitude speedup while maintaining reconstruction quality. The local version of this algorithm is best suited for the differentiable rendering of sparse SDFs. 
+\end{itemize}
+
+\section{Related Work}
+
+\subsection{Differentiable rendering}
+
+Numerous methods have been proposed to provide differentiable rendering algorithms for various types of scene representations. These methods can be broadly divided into two categories: neural and non-neural approaches. The former includes NeRF \cite{NeRF} and other neural rendering techniques that reconstruct representations such as point clouds or signed distance functions (SDFs) \cite{NeUS2, NeuAngelo}. The latter category includes methods such as Gaussian splatting \cite{3DGS, 2DGS} and mesh splatting \cite{MeshS}.
+
+However, when both geometry and material properties must be considered (for instance, in physically based rendering), most of these methods require additional post-processing. First, their outputs must be converted into representations compatible with path tracing pipelines, such as SDFs or meshes. Although approaches for such conversion exist (for example, \cite{BakedSDF, NeRFMeshing} for NeRF and \cite{SuGaR} for Gaussian splatting), quality degradation during conversion is unavoidable. Mesh splatting methods address this issue by directly reconstructing meshes; however, they introduce another limitation: while they allow for texture recovery, they do not support the recovery of material properties. At the same time, there exists a class of methods specifically designed to obtain accurate gradients for ray tracing in physically based rendering.
+
+\subsection{Differentiable physically-based rendering}
+
+The edge sampling method \cite{EdgeSampling} was introduced in 2018 as a differentiable rendering method applicable to path tracing. The proposed approach accounts for both primary and secondary visibility and, for the first time, enables correct differentiation with respect to arbitrary scene parameters. The study demonstrated that, when differentiating the rendering integral with respect to parameters defining an object's shape, the integrand becomes discontinuous, and the locations of these discontinuities depend on the aforementioned parameters. In such cases, the derivative of the integral is obtained using the Reynolds transport theorem:
+
+\begin{equation}
+    \begin{gathered}
+        \frac{d}{d \theta} \int_{\Omega_\theta}{f(\omega;\theta) d\omega} =
+        \\
+        \int_{\Omega_{\theta}}{\frac{d}{d \theta} f(\omega;\theta) d\omega} + \int_{\partial \Omega_{\theta}}{(\partial_\theta \omega \cdot \textbf{n}) f(\omega;\theta) d\omega}
+    \end{gathered}
+\end{equation}
+
+The first term is referred to as the interior integral, while the second is the boundary integral. The difficulty in evaluating the boundary integral lies in the fact that, for any viewpoint, the measure of its domain is zero, making it impossible to sample using Monte Carlo methods. The work \cite{EdgeSampling} uses explicit sampling: silhouette edges of the mesh are identified first, followed by uniform sampling along them. For polygonal meshes, this operation is computationally expensive. Therefore, subsequent studies have proposed methods for evaluating the boundary integral without explicit boundary sampling. The reparameterization method \cite{Reparam} handles discontinuities locally, whereas the warped-area sampling method \cite{WAS} transforms the boundary integral into a volumetric one, enabling the reuse of samples obtained for the interior integral.
+
+The methods discussed above are theoretically independent of the chosen object representation. In practice, however, they are applied to the reconstruction of polygonal meshes. Under these conditions, optimization based on this representation faces several fundamental limitations that significantly complicate the reconstruction task. These limitations are analyzed in the work \cite{Nicolet}. The primary issue with mesh-based representations is the inability to modify the topology (for example, the surface genus) of the initial approximation. Furthermore, the optimization process can lead to irreversible self-intersections and a non-uniform distribution of primitives: regions with high geometric detail may lack sufficient elements to accurately capture the shape. The modifications proposed in \cite{Nicolet} partially mitigate the latter two issues; however, self-intersections persist, and the topological constraint remains a significant obstacle to effective optimization.
+
+\subsection{Differentiable rendering of SDFs}
+
+Since 2021, a number of studies have been devoted to differentiable rendering using SDFs defineed on a regular grid, where signed distance values are stored at the grid nodes. For any point in space, the function returns the distance to the surface by interpolating the grid values; a negative value indicates that the point lies inside the represented object.
+
+The work \cite{HanssonSoderlund} analyzes existing SDF representations and proposes new variants, along with techniques for finding intersection. Two new methods for ray-voxel intersection are presented as an alternative to the standard sphere tracing algorithm. To the best of our knowledge, these representations and methods have not previously been used in differentiable rendering.
+
+\Figure[h](topskip=0pt, botskip=0pt, midskip=0pt)[width=0.95\textwidth]{Resources/gear1.pdf} {
+    Epochs of the SparseDR algorithm: starting from a coarse regular grid, SparseDR gradually optimizes, upsamples and sparsifies it. Only the cells located near the model surface are kept for the next epoch. \label{figSparseDR}
+}
+
+In \cite{DRSDF}, the reparameterization method was applied to signed distance functions for the first time. The study compared two approaches: the direct application of the method~\cite{Reparam} and a modified variant adapted specifically for SDFs. In parallel, \cite{NeuDRSDF} proposed a reparameterization technique for neural SDFs that eliminates the need for masking during optimization.
+
+Finally, within the relaxed boundary method \cite{RelaxBoundary}, the authors further develop the concept of reparameterization as a transformation of a surface integral to a volume integral. The proposed approach to differentiable rendering leverages the properties of distance functions, replacing the boundary integral with an integral over a "relaxed boundary," defined as a thin region surrounding the object's silhouette. The use of SDFs enables the straightforward identification of points within this region during ray tracing, as the distance function value at these points falls below a predefined threshold determined by a hyperparameter.
+
+The described methods advance the differentiable, physics-based rendering for signed distance functions -- a representation that is more flexible for surface reconstruction than meshes. However, this approach has several drawbacks. First, the model size grows rapidly: during optimization, the dense SDF grid resolution increases progressively, and at each upsampling step its size expands eightfold, significantly limiting the method's scalability. Second, rendering remains slow due to the use of sphere tracing. Third, even with local changes in distances near the surface, existing methods employ a computationally expensive redistancing algorithm. This procedure is performed at every optimization step to update values following distance changes, as the grid ceases to represent a valid distance function; consequently, all distance values in the grid require recalculation.
+
+\section{Method}
+
+Our method is named SparseDR (Differentiable Rendering for Sparse SDF). It follows a coarse-to-fine reconstruction strategy, starting with a dense regular grid of SDF values to capture overall shape of an object. To further improve reconstruction quality, the grid resolution must be increased; in our terminology, this corresponds to transition to the next epoch. The reconstruction process proceeds in several epochs with progressive increasing effective grid resolution, as shown in Fig.~\ref{figSparseDR}. At a fixed SDF resolution (within a single epoch), the optimization process converges within a few hundred iterations. Each epoch, described in Algorithm \ref{alg:OptimEpoch}, consists of the following steps. First, a batch of images is rendered using reference viewpoints with gradient accumulation. Next, regularization is applied to the distance values. A loss function representing the discrepancy between the synthesized and reference images is then computed, and backpropagation is performed. At the end of each iteration, a local redistancing procedure is carried out. Between epochs, sparsification and upsampling of the signed distance function (SDF) are performed, followed by a global redistancing calculation (Algorithm \ref{alg:OptimFull}).
+
+\subsection{Workflow Overview}
+
+The SparseDR optimization procedure is controlled via an input configuration file. This file specifies, among other things, the input data: reference images $I_{ref}$ and their corresponding camera views $M_{ref}$, the number of epochs $n_{epoch}$, the array $N_{iter}$ containing the number of iterations for each epoch, and the method hyperparameters.
+
+The outer optimization loop over epochs is outlined in Algorithm \ref{alg:OptimFull}. We initialize our representation $SDF_{res}$ with a sphere model $SDF_{sphere}$ (line 1) and then begin its reconstruction. Each epoch consists of a specified number of iterations presented in Algorithm \ref{alg:OptimEpoch} and post-processing steps (\mbox{lines 5-9} in Algorithm \ref{alg:OptimFull}).
+
+\begin{algorithm}[htbp]
+    \caption{The outer optimization loop.}
+    \label{alg:OptimFull}
+
+    \begin{algorithmic}[1]
+\item[] \textbf{function} Optimize($I_{ref}, M_{ref}, n_{ref}$)
+    \STATE $SDF_{res} \leftarrow SDF_{sphere}$
+    \FOR{$i = 1$ \TO $n_{epoch}$}
+        \STATE $SDF_{res} \leftarrow $ EpochProcess($SDF_{res}, I_{ref}, M_{ref}, n_{ref}, N_{iter}[i]$)
+        \STATE $S_{mark} \leftarrow $ MarkSurfaceBricks($SDF_{res}$)
+        \STATE $SDF_{res} \leftarrow $ Sparsify($SDF_{res}, S_{mark}$)
+        \IF{$i < n_{epoch}$}
+            \STATE $SDF_{res} \leftarrow $ Upsample($SDF_{res}$)
+        \ENDIF
+        \STATE $SDF_{res} \leftarrow $ RedistanceGlobal($SDF_{res}$)
+    \ENDFOR
+    \RETURN $SDF_{res}$
+    \end{algorithmic}
+
+\end{algorithm}
+
+\begin{algorithm}[htbp]
+    \caption{Single epoch of SparseDR optimization.}
+    \label{alg:OptimEpoch}
+
+    \begin{algorithmic}[1]
+\item[] \textbf{function} EpochProcess($SDF_{init}, I_{ref}, M_{ref}, n_{ref}, n_{iter}$)
+    \STATE $SDF_{res} \leftarrow SDF_{init}$
+    \STATE $S_{mark} \leftarrow $ MarkSurfaceBricks($SDF_{res}$)
+    \FOR{$i = 1$ \TO $n_{iter}$}
+        \STATE $k \leftarrow $ SelectView($n_{ref}$)
+        \STATE $I_{res}, \partial SDF \leftarrow $ Render($SDF_{res}, M_{ref}[k]$)
+        \STATE $L_{MSE} \leftarrow $ MSE($I_{res}, I_{ref}[k]$)
+        \STATE $\partial SDF \leftarrow $ dMSE($I_{res}, I_{ref}[k], L_{MSE}, \partial SDF$)
+        \STATE $L_{REG}, \partial SDF_{reg} \leftarrow $ RegularizeLocal($SDF_{res}, S_{mark}$)
+        \STATE $SDF_{res} \leftarrow$ Backpropagate($SDF_{res}, \partial SDF, \partial SDF_{reg}$)
+        \STATE $S_{mark} \leftarrow $ MarkSurfaceBricks($SDF_{res}$)
+        \STATE $SDF_{res} \leftarrow $ RedistanceLocal($SDF_{res}, S_{mark}$)
+    \ENDFOR
+    \RETURN $SDF_{res}$
+    \end{algorithmic}
+\end{algorithm}
+
+The optimization loop for a single epoch is presented in Algorithm \ref{alg:OptimEpoch}. The input are: $SDF_{init}$ -- the result produced by the previous epoch (or $SDF_{sphere}$ for the first epoch), a set of reference images $I_{ref}$ and their corresponding camera views $M_{ref}$; the number of such images $n_{ref}$; and the number of iterations for the current epoch $n_{iter}$. We analyze the input model and mark the model bricks located near the surface as $S_{mark}$ (line 2). Then, in each iteration, we select the $k$-th viewpoint and perform differentiable rendering of the scene in its current state, obtaining an image $I_{res}$ and derivatives with respect to the distance parameters, $\partial SDF$ (lines 4-5) . Next, we compute the MSE loss between $I_{res}$ and $I_{ref}[k]$, calculate the derivative of the MSE with respect to the model parameters, and update $\partial SDF$ (lines 6-7). Following this, we apply smoothing regularization (line 8) to the bricks located near the surface, obtaining the gradients $\partial SDF_{reg}$. The distances are then updated using these gradients. Finally, we re-mark the bricks near the surface and apply local redistancing to them (lines 10-11).
+
+After the optimization epoch stage, we return to the outer loop (Algorithm \ref{alg:OptimFull}). The resulting model $SDF_{res}$ undergoes sparsification, after which  its resolution is doubled (except for the final epoch). Finally, global redistancing is applied to $SDF_{res}$ so that the output model become a valid SDF (line 9 of Algorithm \ref{alg:OptimFull}).
+
+\subsection{Rendering and Gradient Evaluation}
+
+Our reconstruction method employs the Sparse Brick Set (SBS) representation \cite{HanssonSoderlund}. This is a hybrid of hierarchical and regular structures: a BVH tree with leaf nodes storing SDF bricks -- small regular SDF grids -- which enables efficient culling of nodes that do not contain the object's surface. A ray first traverses the BVH tree; upon intersecting a leaf node, it proceeds to intersect the voxels of the corresponding brick. The ray continues moving through bricks along its trajectory until it either reaches the surface or exhausts the bricks in its path.
+
+In addition to the representation itself, our method utilizes two ray-surface intersection techniques proposed for SBS: the Newton's method and an analytical approach. To correctly compute the gradients, we apply the relaxed boundary method~\cite{RelaxBoundary}, adapted to these intersection techniques. Both Newton's method and the analytic approach compute ray-voxel intersections under the assumption that the SDF along the ray within the voxel can be represented as a cubic polynomial; the only difference between them lies in the root-finding procedure. On the other hand, the key property of a relaxed boundary point is that it corresponds to a local minimum of the SDF along the ray, located as close as possible to the surface, but not on the surface itself. Therefore, the task of detecting such points within a voxel reduces to finding the corresponding root of a quadratic equation. However, when trilinear interpolation is used, the local minimum is often reached at the voxel boundaries, and these boundary cases are handled separately.
+
+The algorithm is implemented in C++ using Vulkan API without automatic differentiation: all gradients are computed analytically. To support an arbitrary number of samples per pixel, the shader responsible for rendering the optimized model and computing the boundary integral accumulates gradients every 16 samples, using an intermediate color estimate rather than waiting for the final pixel color to be calculated. This approach is necessitated by the fact that information about the intersected voxel must be stored for each sample, while the accuracy of the gradient estimate depends on the pixel color obtained after sampling. At the same time, the number of samples is user-defined and not known in advance. We assume that 16 samples are sufficient to produce a color close to the final value and therefore store voxel information in a fixed-size stack.
+
+\subsection{Redistancing}
+
+After a gradient descent step, the updated distance values, strictly speaking, cease to be a signed distance function (SDF): they no longer correspond to the true distances to the surface, and the grid no longer satisfies the Eikonal equation. To restore this property, the baseline method recomputes distances at grid nodes (redistancing) using the fast sweeping method \cite{RedistFSM}. Redistansing for sparse representations is more complex: when recomputing distances within a specific SDF brick, it must identify and account for neighboring bricks that are not directly connected via stored distances (i.e., intermediate bricks may be absent, yet such neighbors still influence the correct distance values).
+
+One of the advantages of voxel-based intersection search methods is that they are less sensitive to the accuracy of distance values than sphere tracing. As a result, a voxel can be safely ignored if all of its distance values exceed a relaxed epsilon; in this case, neither an intersection point nor a relaxed boundary point can be found within it. Consequently, precise distance values within bricks that do not contain the surface are of limited importance; in particular, there is no need to recompute distances for such bricks.
+
+\Figure[t](topskip=0pt, botskip=0pt, midskip=0pt)[width=0.9\linewidth]{Resources/Graphic9c1.eps} {
+    Extrapolation step scheme, the yellow side of the brick is extrapolated from the neighbours' sides (green). a) search for neighboring blocks; b) extrapolation of side values from each neighbor.  
+    \label{figNeighborBricks}
+}
+
+\Figure[h](topskip=0pt, botskip=0pt, midskip=0pt)[width=0.9\linewidth]{Resources/Graphic9a2.pdf} {
+    Global (left) and local (right) redistancing. Dots represent distance values; bricks are 3x3 values. Red (blue) dots are the values outside (inside) the object. The dashed line represents the surface. Arrows show the order of updating values. Local redistancing ignores the bricks without the surface. \label{figRedistTypes}
+}
+
+Our global redistancing is the proper redistancing procedure for the whole SBS structure. To ensure correct distance computation, an extrapolation step is introduced: for each brick face that does not adjoin another brick (i.e., lacks a direct neighbor), non-direct neighboring bricks are identified, and the distances for that face are extrapolated from the nearest face of those neighbors (see Fig. \ref{figNeighborBricks}). The minimum absolute values are then selected among the current and all computed distances. The redistancing procedure is parallelized across bricks.
+
+Local redistancing is performed frequently, after each iteration of the method. So we have further optimized the algorithm. The first optimization restricts distance recomputation only to the bricks that contain the surface. The second optimization assumes that distances within surface-containing bricks depend only on the surface within that specific brick, disregarding distances in neighboring bricks. This assumption simplifies implementation and improves data locality without significantly compromising reconstruction quality.  Fig. \ref{figRedistTypes} illustrates the concept behind this local redistancing optimization. Optimization of the local algorithm significantly accelerates the redistancing (Table \ref{tabGlobLoc}) for an iteration performed several hundred times per epoch.
+
+\subsection{Upsampling and Sparsification}
+
+When the optimization process converges within one epoch, grid upsampling (increasing of SDF resolution) is required to further improve the reconstruction quality. The final model quality depends directly on the number of epochs that can be performed while maintaining a sufficiently high iteration speed and an acceptable data representation size. In the SBS approach, resolution is increased by introducing new distance values and subdividing each existing brick into eight smaller ones; each new brick contains the same number of distance samples as the original but represents a spatial region eight times smaller. 
+
+\begin{table}
+    \centering
+    \caption{Average redistancing time per epoch, on epochs 3-7, for local and global redistancing, ms.}
+    \begin{tabular}{cccccc}
+        \toprule
+        Representation & $128^3$ & $256^3$ & $512^3$ & $1024^3$ & $2048^3$  \\
+        \midrule[\heavyrulewidth]
+        Local  & 2.88 & 11.93 &  59.83 &  388.24 & 1803.84 \\
+        \cmidrule(lr){1-1}
+        \cmidrule(lr){2-6}
+        Global &70.48 &307.60 &1494.15 &23142.38 &39645.30  \\
+        \bottomrule
+    \end{tabular}
+    \label{tabGlobLoc}
+\end{table}
+
+A sparsification step is also introduced: bricks are added and removed so that the final representation consists only of bricks containing surface segments, along with a one-brick padding around them. Sparsification is always performed between epochs, but it can also be applied during an epoch. The latter is necessary when reconstructing models with fine details, as such details cannot be reconstructed in early epochs due to the coarse grid, and in later epochs the bricks corresponding to these details can be removed.
+
+\section{Experimental Results}
+
+%This section consists of two parts: the first presents a comparison with the baseline method in terms of reconstruction time, quality, and the size of the resulting models; the second part is devoted to an ablation study of the proposed method. 
+All experiments were conducted using an AMD Ryzen 9 7950X CPU and an NVIDIA GeForce RTX 4090 GPU.
+
+Fig. \ref{figExamples} demonstrates examples of model reconstructions from the dataset. The models from the first group (top) have a relatively simple structure and were initially used to verify the correctness of the method. The models from the second group (bottom) are characterized by highly relief surfaces and numerous fine details. Therefore, the absence of secondary rays affects the accuracy of their reconstruction.
+
+\Figure[h](topskip=0pt, botskip=0pt, midskip=0pt)[width=0.9\textwidth]{Resources/collage_mega.png} {
+    Reconstruction examples on all models from the dataset, split into two parts. For each part, top row -- reference, middle -- reconstruction, bottom -- difference between renders, with contrast increased for better visibility.\label{figExamples}
+}
+
+\Figure[h!](topskip=0pt, botskip=0pt, midskip=0pt)[width=0.9\textwidth]{Resources/ieee_acc_psnr_stem_redist.pdf} {
+    Average PSNR for reconstructions using global vs. local redistancing on each iteration (global redistancing is still applied between epochs). \label{figPSNRRedist}
+}
+
+\Figure[t](topskip=0pt, botskip=0pt, midskip=0pt)[width=0.9\textwidth]{Resources/ieee_acc_psnr_box_nvs.pdf} {
+    PSNR of reconstructed model images for viewpoints from the training set and for novel viewpoints. \label{figNVS}
+}
+
+\Figure[t](topskip=0pt, botskip=0pt, midskip=0pt)[width=0.9\linewidth]{Resources/ieee_acc_time_st_nt.pdf}{
+    Average execution time per epoch for the Sphere Tracing and Newton intersection methods.\label{figSTNt}
+}
+
+\subsection{Ablation study}
+
+The first issue worth consideration is the difference in reconstruction accuracy when using local redistancing instead of global redistancing. Fig. \ref{figPSNRRedist} shows the comparison of the PSNR values for reconstructions obtained by both methods. The results indicate that the differences in reconstruction accuracy are negligible. Given that local redistancing is, on average, 25-30 times faster than global redistancing (as shown in Table~\ref{tabGlobLoc}), it is preferable to use the local version during the epoch.
+
+Fig. \ref{figNVS} shows PSNR values computed for the images of reconstructed models rendered from both training viewpoints and novel viewpoints. The novel viewpoints were generated by uniformly sampling camera positions on a hemisphere surrounding the object, ensuring that they do not coincide with the viewpoints used during training. For all models considered, PSNR values for novel viewpoints are slightly lower than those for training viewpoints. This is consistent with the expected drop in quality when moving from known camera positions to new ones. Nevertheless, the difference remains relatively small, no more than 3 dB on average. This indicates that there is no significant quality degradation during novel view synthesis and suggests that the method maintains a consistent scene representation beyond the training set of viewpoints.
+
+\Figure[htbp](topskip=0pt, botskip=0pt, midskip=0pt)[width=0.9\linewidth]{Resources/collage_sparsify.png} {
+    The use of sparsification during an epoch. Left column -- only basic sparsification between epochs. Center column -- sparsified during an epoch. Right column -- reference. \label{figAblSparsify}
+}
+
+\Figure[htbp](topskip=0pt, botskip=0pt, midskip=0pt)[width=0.9\linewidth]{Resources/collage_mask1.png} {
+    The use of mask during reconstruction. Left column -- without a mask. Center column -- using a mask. Right column -- references. \label{figAblMask}
+}
+
+Fig. \ref{figSTNt} compares the execution time (seven epochs) for two methods of ray intersection with SBS structure: sphere tracing and Newton's method. The execution time depends both on the number of iterations and the geometric complexity of the model, since the intersection finding also requires traversing the BVH. As the model size increases, the number of nodes to be traversed grows, leading to higher computational cost.
+
+During the first seven epochs, Newton's method demonstrates a shorter execution time compared to sphere tracing. This is because, given the specific SBS sizes, the number of voxels intersected by the rays remains relatively small; therefore, finding the intersection point takes fewer iterations and proceeds faster than with sphere tracing. As the number of voxels further increases, so does the number of SBS regions requiring ray intersection calculations, thereby raising the total cost per iteration. Thus, Newton's method may lose its advantage in later epochs.
+
+During the reconstruction, additional tools can be employed to improve the accuracy of model reconstruction. First, 
+a sparsification step can be performed periodically during an epoch. By default, this step is applied only between epochs. During this step, bricks are removed and added based on their proximity to the surface, allowing the represented region to expand where significant surface fragments are added. Fig.~\ref{figAblSparsify} shows examples of reconstruction without and with additional sparsification, alongside a reference image. In the first case, the helicopter propeller could not be reconstructed because it is thin. Its coarse approximation failed to form during the early epochs, and the bricks corresponding to the region it occupied were removed. With additional sparsification, these bricks, and subsequently the propeller itself, were recovered at a later epoch.
+
+Second, object masks can be used for the reference images. The mask sensitivity is specified for each epoch; the default value is 0. Increasing this parameter helps to recover holes in complex models when differentiable rendering alone fails to handle them. Fig.~\ref{figAblMask} shows examples of reconstructing the Happy Buddha model without and with the use of a mask. The reference image is also presented for clarity.
+
+\subsection{Comparison to baseline}
+
+The comparisons involve reconstructing models under nearly identical conditions, followed by a comparison of reconstruction time, accuracy, and the sizes of the resulting representations for each epoch. The implementation of the relaxed boundary method was taken from the official repository \cite{RelaxRepo}.
+
+Reconstruction was performed using 24 views uniformly distributed over a hemisphere; the image resolution was 1024x1024. The scene includes two directional light sources (with directions (1,1,1) and (-1,-1,-1)), and an ambient light. The batch size was 6. Hyperparameters, such as the learning rate, Adam optimizer parameters, and relaxed boundary width, were taken from the configuration file in the baseline method's repository. Twelve models were reconstructed: four models from the Stanford 3D Scans Repository, a scan of the Nefertiti, the Utah Teapot, and scans from Artec3D: Buggy, Demogorgon, Doom, Helicopter, Pufferfish, and Wheel.
+
+\begin{table}
+    \centering
+    \caption{The model sizes for the Relaxed Boundary and SparseDR (Ours) methods, epochs 3-7. All values are in MBs. The size of Relaxed Boundary's dense grid is the same for all models. Asterisks denote theoretical values, as we could not acquire them on our hardware (out-of-memory error). }
+        \begin{tabular}{ccccccc}
+        \toprule
+        Epoch & 3 & 4 & 5 & 6 & 7  \\
+%        \midrule[\heavyrulewidth] 
+        SDF representation & $128^3$ & $256^3$ & $512^3$ & $1024^3$ & $2048^3$  \\
+        \midrule[\heavyrulewidth]
+        Relaxed Boundary: & & &  & & \\
+         any model & 8 & 64 & 512 & 4096* & 32768* \\
+        \cmidrule(lr){1-6}
+        SparseDR (Ours): & & &  & & \\
+%        \cmidrule(lr){1-1}  \cmidrule(lr){2-6}
+        Armadillo      &          8.5 & 31.1 & 126.2 & 514.2 & 1074.2  \\
+        \cmidrule(lr){1-1}  \cmidrule(lr){2-6}
+        Bunny          &         11.4 & 49.5 & 195.1 & 775.3 & 3093.8  \\
+        \cmidrule(lr){1-1}  \cmidrule(lr){2-6}
+        Dragon         & 4.8 & 17.1 & 67.9 & 275.6 & 1154.6  \\
+        \cmidrule(lr){1-1}  \cmidrule(lr){2-6}
+        Happy          & 4.9 & 20.4 & 88.5 & 373.9 & 1562.8  \\
+        \cmidrule(lr){1-1}  \cmidrule(lr){2-6}
+        Nefertiti      & 7.3 & 29.0 & 114.1 & 459.0 & 1845.3  \\
+        \cmidrule(lr){1-1}  \cmidrule(lr){2-6}
+        Teapot         & 6.3 & 23.6 & 96.4 & 392.1 & 1597.7  \\
+        \cmidrule(lr){1-1}  \cmidrule(lr){2-6}
+        Buggy          & 7.5 & 31.6 & 158.6 & 852.8 & 4068.1  \\
+        \cmidrule(lr){1-1}  \cmidrule(lr){2-6}
+        Demogorgon    &     10.5 & 41.9 & 185.8 & 923.6 & 4487.9  \\
+        \cmidrule(lr){1-1}  \cmidrule(lr){2-6}
+        Doom         &     8.9 & 35.5 & 160.6 & 777.3 & 3640.7  \\
+        \cmidrule(lr){1-1}  \cmidrule(lr){2-6}
+        Helicopter     & 3.4 & 12.2 & 42.7 & 175.9 & 793.8  \\
+        \cmidrule(lr){1-1}  \cmidrule(lr){2-6}
+        Pufferfish    &  8.1 & 42.6 & 232.6 & 1099.7 & 5056.0  \\
+        \cmidrule(lr){1-1}  \cmidrule(lr){2-6}
+        Wheel          & 7.2 & 29.6 & 142.6 & 734.0 & 3709.6  \\
+        \bottomrule
+    \end{tabular}
+    \label{tab:comp_size}
+\end{table}
+
+Table \ref{tab:comp_size} reports the sizes of the models obtained for input models across epochs 3-7. The SDF grid size is identical for all models at each epoch; therefore, it is specified only once in the top row. For the baseline method, the grid size is reported, whereas for our method we report the combined size of the SBS representation and its BVH tree. In the baseline method, upsampling causes the dense grid size to increase eightfold when transitioning from one epoch to the next. The dense grid size (baseline) is the same for any model, whereas the sizes of our representation are different for the different models. Due to the use of a sparse data structure, the size of all models generated by our method is smaller than the grid size starting from the fourth epoch. Moreover, the model size after upsampling is approximately four times the initial size, since the model stores distance values only near the surface. Thus, the rate of model size growth in our method is an order of magnitude lower than in the baseline method.
+
+With the hardware configuration we used, the baseline method allows for only 5 epochs (after which it returns an out-of-memory error), whereas our method completes 7 epochs in the same amount of time. Therefore, we report execution times for the first five epochs and the PSNR quality metric for both an equal number of epochs and an equal actual runtime.
+
+\Figure[t](topskip=0pt, botskip=0pt, midskip=0pt)[width=0.9\textwidth]{Resources/ieee_acc_psnr_all.pdf} {
+    Average PSNR of reconstructed models for the baseline (blue), our method with the same number of epochs (5 epochs, red), and our method for the same total reconstruction time (7 epochs, yellow).\label{figPSNR57}
+}
+
+\Figure[h](topskip=0pt, botskip=0pt, midskip=0pt)[width=0.9\linewidth]{Resources/ieee_acc_time_5.pdf} {
+    Average iteration time for the epochs 1-5. For each epoch, left bar is the baseline, right bar is our method.
+    \label{figTime5}
+}
+
+Fig. \ref{figPSNR57} shows the view-averaged PSNR values for rendered images of reference objects and the reconstruction results. Data are presented for three variants: the baseline method (5 epochs), our method (also 5 epochs), and our method using the same real-time budget as the baseline (7 epochs). The first six models have relatively smooth surfaces, so our method achieves substantially higher reconstruction accuracy due to the greater level of detail provided by the representation used. The last six models are characterized by pronounced surface relief and abundant fine details; this reduces the gap in reconstruction accuracy between our method and the baseline, which employs path tracing.
+%Nevertheless, after extending our method, we expect an improvement in reconstruction quality. Using these models in future comparisons will make the progress and effectiveness of the method more apparent.
+
+Fig. \ref{figTime5} presents the average per-iteration execution time averaged over all models for the first five epochs. It can be seen that rendering time in our method depends on model size. Nevertheless, our method outperforms the baseline during the first five epochs, achieving up to a 10-fold increase in iteration speed. It is also worth noting that the CPU-based local redistancing version proves faster than redistancing on the dense grid using the GPU.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Conclusion and Future Work}
+
+In this work, we propose SparseDR, an efficient geometry reconstruction method based on the differentiable rendering of sparse signed distance functions (SDFs). Our method achieves high accuracy through the effective resolution of the representation while maintaining a controlled memory footprint via sparse data storage. We demonstrate that sparse SDF representations can serve as a viable geometric representation for reconstruction applications using ray-traced rendering, enabling fast ray-traced visualization in CAD systems and interactive 3D applications.
+
+The current implementation focuses on geometry reconstruction and direct illumination. It does not yet model secondary rays or estimate material properties. However, the underlying architecture allows for extension into a full-fledged differentiable path tracer. Future work will include support for secondary rays and more comprehensive light transport simulation to improve reconstruction quality in scenes where indirect illumination noticeably influences the final image. We also intend to implement the joint reconstruction of geometry, light sources, and material properties. The present results show that sparse SDF-based differentiable rendering is a suitable foundation for inverse rendering systems that recover geometry, materials, and lighting parameters.
+
+% Note: acknowledgment here must be omitted in favor of footnote at the title page. 
+% \section{Acknowledgments}
+% This work was supported by The Ministry of Economic Development of the Russian Federation in accordance with the subsidy agreement (agreement identifier 000000C313925P4H0002; grant No 139-15-2025-012).
+
+\vspace{6pt}
+
+
+\begin{thebibliography}{00}
+
+\bibitem{ref-lin-2020} 
+C. H. Lin, C. Wang, and S. Lucey, ``SDF-SRN: Learning Signed Distance 3D Object Reconstruction from static Images,'' \textit{Adv. Neural Inf. Process. Syst.}, vol. 33, pp.~11453--11464, 2020.
+
+\bibitem{ref-sommer-2022} 
+C. Sommer, L. Sang, D. Schubert, and D. Cremers, Gradient-SDF: A Semi-Implicit Surface Representation for 3D Reconstruction. In \textit{Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR)}, New Orleans, LA, USA, 2022. 10.1109/CVPR52688.2022.00618
+
+\bibitem{ref-slavcheva-2016} 
+M. Slavcheva, W. Kehl, N. Navab, and S. Ilic, SDF-2-SDF: Highly Accurate 3D Object Reconstruction. In \textit{Proceedings of the European Conference on Computer Vision (ECCV)}, Amsterdam, The Netherlands, pp. 680--696, 2016. 10.1007/978-3-319-46448-0\_41
+
+\bibitem{DRSDF2022} 
+D. Vicini, S. Speierer, and W. Jakob, ``Differentiable signed distance function rendering,'' \textit{ACM Trans. Graph.}, vol. 41, no. 4, 125, pp.~1--18, 2022. (TOG) 10.1145/3528223.3530139
+
+\bibitem{RelaxBoundary}
+Z. Wang, X. Deng, Z. Zhang, W. Jakob, and S. Marschner. A Simple Approach to Differentiable Rendering of SDFs. In \textit{Proc. of SIGGRAPH Asia 2024 Conference Papers (SA '24)}. New York, NY, USA, 119, \mbox{pp. 1-11,} 2024. 10.1145/3680528.3687573.
+
+\bibitem{invCAD1} 
+Z. Zhang, M. Zhao, Z. Shen, Y. Wang, X. Jia, and D.-M. Yan, ``Interactive reverse engineering of CAD models,'' \textit{Comput. Aided Geom. Des.}, vol. 111, p.~102339, 2024, 10.1016/j.cagd.2024.102339
+
+\bibitem{invCAD2} 
+S. Kabisov, V. Kirichuk, A. Volkov, M. Barannikov, G. Savrasov, A. Konushin, et al., CADreasoner: Iterative program editing for CAD reverse engineering. In \textit{Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition}, pp. 6143-6153, 2026.
+
+\bibitem{ijcai2026}
+A. Budak, A. Garifullin, and V. Frolov. SparseDR: Differentiable Rendering of Sparse Signed Distance Fields. In \textit{Proceedings of the 35th International Joint Conference on Artificial Intelligence. Demo track}. \mbox{pp.~8371-8374,} 2026. 10.24963/ijcai.2026/959
+
+\bibitem{NeRF}
+B. Mildenhall, P. Srinivasan, M. Tancik, J. T. Barron, R. Ramamoorthi, and R. Ng. NeRF: representing scenes as neural radiance fields for view synthesis. \textit{Commun. ACM}, vol. 65, no. 1, pp. 99--106, 2022. 10.1145/3503250.
+
+\bibitem{NeUS2}
+Y. Wang, Q. Han, M. Habermann, K. Daniilidis, C. Theobalt and L. Liu. NeuS2: Fast Learning of Neural Implicit Surfaces for Multi-view Reconstruction. In \textit{Proc. of IEEE/CVF International Conference on Computer Vision (ICCV)}, Paris, France, pp. 3272-3283, 2023. 10.1109/ICCV51070.2023.00305.
+
+%-----------10-------------
+
+\bibitem{NeuAngelo}
+Z. Li et al. NeuralAngelo: High-Fidelity Neural Surface Reconstruction. In \textit{Proc. of IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR)}, Vancouver, BC, Canada, pp. 8456-8465, 2023. 10.1109/CVPR52729.2023.00817.
+
+\bibitem{3DGS}
+B. Kerbl, G. Kopanas, T. Leimkuehler, and G. Drettakis. 3D Gaussian Splatting for Real-Time Radiance Field Rendering. \textit{ACM Trans. Graph.}, vol. 42, no. 4, 139, pp. 1--14, 2023. 10.1145/3592433.
+
+\bibitem{2DGS}
+B. Huang, Z. Yu, A. Chen, A. Geiger, and S. Gao. 2D Gaussian Splatting for Geometrically Accurate Radiance Fields. In \textit{Proc, of ACM SIGGRAPH 2024. Conference Papers}, New York, NY, USA, 32, pp. 1-11, 2024. 10.1145/3641519.3657428.
+
+\bibitem{MeshS}
+J. Held, S. Son, R. Vandeghen, D. Rebain, M. Gadelha, Y. Zhou, et al. MeshSplatting: Differentiable Rendering with Opaque Meshes. In \textit{Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR)}, pp. 7320-7329, 2026.
+
+\bibitem{BakedSDF}
+L. Yariv, P. Hedman, C. Reiser, D. Verbin, P. P. Srinivasan, R. Szeliski, et al. BakedSDF: Meshing Neural SDFs for Real-Time View Synthesis. In \textit{ACM SIGGRAPH 2023 Conference Proceedings (SIGGRAPH '23)}, New York, NY, USA, 46, pp. 1--9, 2023. 10.1145/3588432.3591536.
+
+%-----------15-------------
+
+\bibitem{NeRFMeshing}
+M. -J. Rakotosaona, F. Manhardt, D. M. Arroyo, M. Niemeyer, A. Kundu, and F. Tombari. NeRFMeshing: Distilling Neural Radiance Fields into Geometrically-Accurate 3D Meshes. In \textit{Proc. of International Conference on 3D Vision (3DV)}, Davos, Switzerland, pp. 1156--1165, 2024. 10.1109/3DV62453.2024.00093.
+
+\bibitem{SuGaR}
+A. Gu\'edon, and V. Lepetit. SuGaR: Surface-Aligned Gaussian Splatting for Efficient 3D Mesh Reconstruction and High-Quality Mesh Rendering. In \textit{Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR)}, Seattle, Washington, USA, pp. 5354--5363, 2024.
+
+\bibitem{EdgeSampling}
+T.-M. Li, M. Aittala, F. Durand, and J. Lehtinen. ``Differentiable Monte Carlo ray tracing through edge sampling.'' \textit{ACM Trans. Graph.}, vol. 37, no. 6, 222, pp. 1--11, 2018. 10.1145/3272127.3275109.
+
+\bibitem{Reparam}
+G. Loubet, N. Holzschuch, and W. Jakob. ``Reparameterizing discontinuous integrands for differentiable rendering.'' \textit{ACM Trans. Graph.}, vol. 38, no. 6, 228, pp. 1--14, 2019. 10.1145/3355089.3356510.
+
+\bibitem{WAS}
+S. P. Bangaru, T.-M. Li, and F. Durand. ``Unbiased warped-area sampling for differentiable rendering.'' \textit{ACM Trans. Graph.}, vol. 39, no. 6, 245, \mbox{pp. 1--18,} 2020. 10.1145/3414685.3417833.
+
+%-----------20-------------
+
+\bibitem{Nicolet}
+B. Nicolet, A. Jacobson, and W. Jakob. ``Large steps in inverse rendering of geometry.'' \textit{ACM Trans. Graph.}. vol. 40, no. 6, 248, pp. 1--13, 2021. 10.1145/3478513.3480501.
+
+\bibitem{HanssonSoderlund}
+H. Hansson-Söderlund, A. Evans, and T. Akenine-Möller. ``Ray Tracing of Signed Distance Function Grids.'' \textit{Journal of Computer Graphics Techniques (JCGT)}, vol. 11, no. 3, pp. 94-113, 2022.
+
+\bibitem{DRSDF}
+D. Vicini, S. Speierer, and W. Jakob. ``Differentiable signed distance function rendering.'' \textit{ACM Trans. Graph.}, vol. 41, no. 4, 125, pp. 1--18, 2022. 10.1145/3528223.3530139.
+
+\bibitem{NeuDRSDF}
+S. P. Bangaru, M. Gharbi, F. Luan, T.-M. Li, K. Sunkavalli, M. Hasan, et al. Differentiable Rendering of Neural SDFs through Reparameterization. In \textit{Proc. SIGGRAPH Asia 2022 Conference Papers (SA '22)}. New York, NY, USA, 5, pp. 1--9, 2022. 10.1145/3550469.3555397.
+
+\bibitem{RedistFSM}
+M. Detrixhe, F. Gibou, and C. Min. ``A parallel fast sweeping method for the Eikonal equation.'' \textit{Journal of Computational Physics}, vol. 237, \mbox{pp. 46--55}, 2013. 10.1016/j.jcp.2012.11.042.
+
+\bibitem{RelaxRepo}
+Z. Wang. A Simple Approach to Differentiable Rendering of SDFs: official repository. [Online] Available: https://github.com/zichenwang01/relaxed-boundary/, 2024. 10.1145/3680528.3687573
+
+\end{thebibliography}
+
+\begin{IEEEbiography}[{\includegraphics[width=1in,height=1.25in,clip,keepaspectratio]{photos/alexey_budak_ieee.jpg}}]{Alexey Budak}
+received the B.S. and M.S. degrees in computer science and applied mathematics from Lomonosov Moscow State University, Moscow, Russia, in 2024 and 2026, respectively.
+
+He is currently a Junior Researcher with the Lomonosov Moscow State University, Moscow, Russia. He has authored or coauthored 5 publications in the field of computer graphics. His research interests include computer graphics, signed distance functions, compact geometry representations, and procedural generation.
+\end{IEEEbiography}
+
+\begin{IEEEbiography}[{\includegraphics[width=1in,height=1.25in,clip,keepaspectratio]{photos/albert_garifullin_ieee.jpg}}]{Albert Garifullin}
+received the B.S. and M.S. degrees in computer science and applied mathematics from Lomonosov Moscow State University, Moscow, Russia, in 2023 and 2025, respectively.
+
+He is currently a Junior Researcher with the Lomonosov Moscow State University, Moscow, Russia. He has authored or coauthored eight research articles in the fields of computer science and computer graphics. His research interests include 3-D computer vision, computer graphics, procedural generation, and compact geometry representations.
+\end{IEEEbiography}
+
+\begin{IEEEbiography}[{\includegraphics[width=1in,height=1.25in,clip,keepaspectratio]{photos/vladimir_frolov_ieee.jpg}}]{Vladimir Frolov}
+received the M.S. degree in computer science and applied mathematics from the Faculty of Computational Mathematics and Cybernetics at Lomonosov Moscow State University, Moscow, Russia, in 2010. He received the Ph.D. degree in computer science at the Institute of Applied Mathematics of the Russian Academy of Sciences in 2015.
+
+He is currently a Senior Researcher with the Institute for Artificial Intelligence, Lomonosov Moscow State University, Moscow, Russia. His research interests include ray tracing, computer graphics, and artificial intelligence.
+\end{IEEEbiography}
+
+\begin{IEEEbiography}[{\includegraphics[width=1in,height=1.25in,clip,keepaspectratio]{photos/alexey_voloboy.jpg}}]{Alexey Voloboy}
+graduated from the Faculty of Mechanics and Mathematics at Lomonosov Moscow State University, Moscow, Russia, in 1988 (M.S. degrees in mathematics). He defended his Ph.D. thesis in computer science at the Institute of Applied Mathematics of the Russian Academy of Sciences in 2005 and his Doctoral thesis in 2012. 
+
+Dr. Voloboy is currently a Leading Researcher with the Lomonosov Moscow State University, Moscow, Russia. He has published more than 250 research articles and conference papers in computer science. His research interests include realistic computer graphics, computational optics, ray tracing technique, and lighting simulation.
+\end{IEEEbiography}
+
+\EOD
+\end{document}
